@@ -1,0 +1,46 @@
+replace:
+  б: п*
+  в: ф*
+  г: к*
+  д: т*
+  ж: ш*
+  з: с*
+  ц: тс
+  щ: 'ш`'
+  ь: '`'
+  ъ: '' # empty string
+  й: j
+  -: ''
+
+re_replace:
+  ого$: ово # какого → каково
+  его$: ево # todo: connect this with part of speech
+  
+j_vowel:
+  е: э
+  ё: о' # always under stress; in dicts not marked
+  ю: у
+  я: а
+
+
+assonance_vectors:
+  а: [5, 7]
+  о: [4, 7]
+  э: [6, 6]
+  и: [8, 2]
+  ы: [7, 3]
+  у: [3, 3]
+
+groups:
+  H:  [ч, ш, с] # ц
+  X:  [х, ф]
+  K:  [к, т, п]
+  R:  [р, л, н, м]
+  J:  [j]
+
+extra_sim:
+  - [к, х]
+  - [т, с]
+
+
+softable: [с, х, ф, к, т, п, р, л, н, м]

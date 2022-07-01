@@ -1,0 +1,17 @@
+[package]
+name = "quickpoeter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+
+serde-pickle = "1"
+serde_yaml = "0.8"
+npy = "0.4"
+npy-derive="0.4"
+bincode = "*"
+half = { version = "2.0.0", features = ["serde"] }
+phf = { version = "0.10", features = ["macros"] }
