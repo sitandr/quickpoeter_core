@@ -138,6 +138,7 @@ fn cloning_hash_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, u32> {
     hash
 } 
 
+#[ignore]
 #[cfg(test)]
 #[test]
 fn test_loading(){
