@@ -1,5 +1,6 @@
 use crate::translator_struct::*;
 use phf::phf_map;
+use crate::reader::StressSettings;
 /*use lazy_static::lazy_static;
 use regex::Regex;*/
 
@@ -35,14 +36,14 @@ const ALLITERATION: phf::Map<char, (f32, f32)> = phf_map! {
 	'ф' => (8.0, 2.0)
 };
 /*
- оа
-    э 
+ о 
+  а э 
            
 у     ы
         и
 */
-const ASSONANSES: phf::Map<char, (u8, u8)> = phf_map! {
-	'а' => (5, 6),
+const ASSONANSES: phf::Map<char, (i8, i8)> = phf_map! {
+	'а' => (5, 5),
 	'о' => (4, 6),
 	'э' => (6, 5),
 	'и' => (8, 2),
@@ -50,13 +51,32 @@ const ASSONANSES: phf::Map<char, (u8, u8)> = phf_map! {
 	'у' => (3, 3)
 };
 
+#[derive(Debug, Copy, Clone)]
+pub enum Accent{
+	NoAccent,
+	Primary,
+	Secondary,
+}
+
 #[derive(Debug)]
 pub struct Vowel{
 	pub letter: char,
-	pub accent: u8, // 0 if None, 2 if secondary, 1 if primary\
+	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
 }
 impl Vowel{
 	const ALL: [char; 6] = ['а', 'о', 'э', 'и', 'ы', 'у'];
+
+	// needs stress_settings -> doesn't belong to Phone
+	pub fn accent_distance(&self, other: &Self, sett: &StressSettings) -> f32{
+		type A = Accent;
+		let k: f32 = match (self.accent, other.accent) {
+			(A::NoAccent, A::NoAccent) => 1.0,
+		    (A::NoAccent, A::Primary)|(A::Primary, A::NoAccent) => sett.bad_rythm,
+		    (A::NoAccent, A::Secondary)|(A::Secondary, A::NoAccent)|(A::Secondary, A::Secondary) => sett.k_not_strict_stress,
+		    (A::Primary, A::Primary)|(A::Primary, A::Secondary)|(A::Secondary, A::Primary) => sett.k_strict_stress
+		};
+		k * self.distance(other)
+	}
 }
 
 #[derive(Debug)]
@@ -71,25 +91,27 @@ impl Consonant{
 
 
 impl Phone for Vowel{
-	fn similarity(&self, other: &Self) -> f32{
+	fn distance(&self, other: &Self) -> f32{
 		let (x1, y1) = ASSONANSES[&self.letter];
 		let (x2, y2) = ASSONANSES[&other.letter];
 
-		let res: f32 = ((x1 - x2).pow(2) + (y1 - y2).pow(2)).into();
-		res/26.0
+		let res: f32 = (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f32)/26.0;
+		res
 	}
+
+
 	fn from_vec(v: &Vec<char>) -> Self{
 		assert!(v.len() <= 2);
 		let accent = {
 			if v.len() > 1{
 				match v[1]{
-				'\'' => 1,
-				'`' => 2,
+				'\'' => Accent::Primary,
+				'`' => Accent::Secondary,
 				other => unreachable!("Bad identifier {}", other)
 				}
 			}
 			else{
-				0
+				Accent::NoAccent
 			}
 		};
 		let v: Self = Self{letter: v[0], accent: accent};
@@ -101,7 +123,7 @@ impl Phone for Vowel{
 }
 
 impl Phone for Consonant{
-	fn similarity(&self, other: &Self) -> f32{
+	fn distance(&self, other: &Self) -> f32{
 		if self.letter == other.letter{
 			return 0.0;
 		}
@@ -308,8 +330,8 @@ use std::time::{Instant};
 fn testing(){
 
 	let current = Instant::now(); 
-	J_MARKERS.contains(&'а');
-	J_MARKERS.contains(&'г');
+	let _ = J_MARKERS.contains(&'а');
+	let _ = J_MARKERS.contains(&'г');
     println!("Checked by vec in {:#?} seconds", current.elapsed());
 
     let current = Instant::now(); 

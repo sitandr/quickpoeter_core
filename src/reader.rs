@@ -15,7 +15,7 @@ const VECTOR_DIM: usize = 150;
 
 #[derive(Deserialize, Debug)]
 pub struct MiscSettings{
-    pub same_consend_end: f32,
+    pub same_cons_end: f32,
     pub length_diff_fine: f32
 }
 
@@ -25,6 +25,7 @@ pub struct StressSettings{
     pub k_strict_stress: f32,
     pub bad_rythm: f32,
     pub asympt: f32,
+    pub weight: f32
 }
 
 #[derive(Deserialize, Debug)]
@@ -152,17 +153,7 @@ fn test_loading(){
     let _w2i_g: HashMap<String, u32> = cloning_hash_from_list(_i2w.clone());
     println!("Created word2index in {:#?} seconds", current.elapsed());
 
-
-    // As it was expected, generating value-ind costs 9 ms (6 ms without copying vec),
-    // loading one — 30 ms, so I removed the file
-
-    /*
-    let current = Instant::now(); 
-    let _w2i_l: HashMap<String, u32> = pickle_read("res/r_word2index.pkl");
-    println!("Loaded word2index in {:#?} seconds", current.elapsed());
-    println!("Equal: {}", _w2i_l == _w2i_g);
-    assert!(_w2i_l == _w2i_g);
-    */
+    // Generating value-ind costs 9 ms (6 ms without copying vec),
 
     let current = Instant::now(); 
     let _mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
@@ -173,7 +164,18 @@ fn test_loading(){
     let _vects: Vec<[f32;VECTOR_DIM]> = bin_read16("res/r_vectors_16.bc");
     // for some reason, in the test it displays two times much time than in main code
     println!("Loaded meaning in {:#?} seconds", current.elapsed());
+}
 
+use crate::translator_struct::Word;
 
-
+#[cfg(test)]
+#[test]
+fn test_try_settings(){
+    let gs = read_settings();
+    let w1 = Word::new("сло'во", false);
+    let w2 = Word::new("сла'ва", false);
+    println!("{}", w1.measure_distance(&w2, &gs));
+    let w1 = Word::new("преда'тельство", false);
+    let w2 = Word::new("рыда'тьустал", false);
+    println!("{}", w1.measure_distance(&w2, &gs));
 }

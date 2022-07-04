@@ -1,9 +1,9 @@
 use crate::translator_ru::{Vowel, Consonant, transcript};
-
+use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings, MeaningSettings};
 
 
 pub trait Phone{
-	fn similarity(&self, second: &Self) -> f32;
+	fn distance(&self, second: &Self) -> f32;
 	fn from_vec(v: &Vec<char>) -> Self;
 	fn contains_char(c: &char) -> bool;
 }
@@ -19,11 +19,11 @@ pub struct Syll{
 #[derive(Debug)]
 pub struct Word{
 	// unlike python version, the letter order stays the same
-	pub syllables: Vec<Syll>
+	pub sylls: Vec<Syll> // syllables
 }
 
 impl Word{
-	fn new(w: &str, is_adj: bool) -> Self {
+	pub fn new(w: &str, is_adj: bool) -> Self {
 		let unproc = word_to_unprocessed_vecs(w, is_adj);
 		let mut sylls = vec![];
 
@@ -44,7 +44,91 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{syllables: sylls}
+		Self{sylls: sylls}
+	}
+
+	fn has_cons_end(&self) -> bool{
+		self.sylls.last().unwrap().trailing_consonants.len() > 0
+	}
+
+	fn get_sorted_by_sylls<'a>(one: &'a Self, other: &'a Self) -> (&'a Self, &'a Self){
+		if one.sylls.len() > other.sylls.len(){
+			(other, one)
+		}
+		else{
+			(one, other)
+		}
+	}
+
+	fn measure_vowel_dist(&self, other: &Self, sett: &StressSettings) -> f32{
+		let mut dist = 0.0;
+		
+		for i1 in 0..self.sylls.len(){ // self is smaller
+			let i2 = other.sylls.len() - self.sylls.len() + i1;
+			let s1 = &self.sylls[i1];
+			let s2 = &other.sylls[i2];
+			if let Some(v1) = &s1.leading_vowel{
+				if let Some(v2) = &s2.leading_vowel{
+					dist += v1.accent_distance(v2, sett);
+				}
+			}
+		}
+		dist/(self.sylls.len() as f32).powf(sett.asympt)*sett.weight
+	}
+
+	pub fn measure_cons_dist(&self, other: &Self, sett: &AlliterationSettings) -> f32{
+		let mut dist = 0.0;
+
+		for (is, il, c1) in self.into_iter(){
+			for (is2, il2, c2) in other.into_iter(){
+				let slength = self.sylls[is].trailing_consonants.len();
+				let slength2 = other.sylls[is].trailing_consonants.len();
+				let sum_syl_len = (slength + slength2) as f32;
+
+				let d1 = (self.sylls.len() - is) as f32 + (slength - il) as f32 /sum_syl_len;
+				let d2 = (other.sylls.len() - is2) as f32 + (slength2 - il2) as f32 /sum_syl_len;
+
+                let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
+                k *= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);     
+                dist += c1.distance(c2)/k;
+			}
+		}
+		dist/(self.sylls.len() as f32).powf(sett.asympt)*sett.weight
+	}
+
+	fn measure_struct_dist(&self, other: &Self, sett: &ConsonantStructureSettings) -> f32{
+		let mut dist = 0.0;
+		
+		for i1 in 0..self.sylls.len(){ // self is smaller
+			let i2 = other.sylls.len() - self.sylls.len() + i1;
+			let s1 = &self.sylls[i1];
+			let s2 = &other.sylls[i2];
+			dist += ((s1.trailing_consonants.len() as f32 - s2.trailing_consonants.len() as f32)).abs().powf(sett.pow);
+		}
+		dist/(self.sylls.len() as f32).powf(sett.asympt)*sett.weight
+	}
+
+	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
+		let mut dist = 0.0;
+		if self.has_cons_end() == other.has_cons_end(){
+			dist += gs.misc.same_cons_end;
+		}
+		let (first, second) = Self::get_sorted_by_sylls(self, other);
+		let length_diff: f32 = (second.sylls.len() - first.sylls.len()) as f32;
+		dist += gs.misc.length_diff_fine * length_diff;
+
+		println!("Other: {}", dist);
+		dist += first.measure_vowel_dist(second, &gs.stresses);
+		println!("vowel: {}", first.measure_vowel_dist(second, &gs.stresses));
+		dist += first.measure_cons_dist(second, &gs.alliteration);
+		println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
+		dist += first.measure_struct_dist(second, &gs.consonant_structure);
+		println!("struct: {}", first.measure_struct_dist(second, &gs.consonant_structure));
+
+		dist
+	}
+	fn into_iter(&self) -> WordConsIterator{
+		WordConsIterator::new(self)
 	}
 }
 
@@ -77,9 +161,61 @@ fn word_to_unprocessed_vecs(w: &str, is_adj: bool) -> Vec<Vec<char>>{
 	res
 }
 
+struct WordConsIterator<'a>{
+	word: &'a Word,
+	count_syll: usize,
+	count_lyll: usize,
+}
+
+impl<'b> Iterator for WordConsIterator<'b>{
+	type Item = (usize, usize, &'b Consonant);
+	
+
+	fn next(&mut self) -> Option<Self::Item>{
+		self.count_lyll += 1;
+		let syll = &self.word.sylls[self.count_syll];
+		if self.count_lyll >= syll.trailing_consonants.len(){
+			self.count_lyll = 0;
+			self.count_syll += 1;
+			if self.count_syll >= self.word.sylls.len(){
+				None
+			}
+			else{
+				self.next()
+			}
+		}
+		else{
+			
+			Some((self.count_syll, self.count_lyll, &syll.trailing_consonants[self.count_lyll]))
+		}
+
+	}
+}
+
+impl<'b> WordConsIterator<'b>{
+	fn new(w: &'b Word) -> Self{
+		WordConsIterator{word: w, count_syll:0, count_lyll:0}
+	}
+}
+
 #[cfg(test)]
 #[test]
 fn create_word(){
-	let res = Word::new("дряньюня", false);
-	println!("{:#?}", res);
+	let res = Word::new("дряньяня", false);
+	let res2 = Word::new("драчунья", false);
+	let mut gs = GeneralSettings{
+	 	misc: MiscSettings{same_cons_end: 0.0, length_diff_fine: 0.0},
+		stresses: StressSettings{asympt: 0.0, bad_rythm: 0.0, k_not_strict_stress: 0.0, k_strict_stress: 0.0, weight: 0.0}, 
+		consonant_structure: ConsonantStructureSettings{asympt: 0.0, pow: 0.0, weight: 0.0},
+		alliteration: AlliterationSettings{asympt: 0.0, pow_coord_delta: 0.0, pow_syll_ending: 0.0, shift_coord: 0.0, shift_syll_ending: 0.0, weight: 0.0},
+		meaning: MeaningSettings{weight: 0.0}};
+
+	assert_eq!(res.measure_distance(&res2, &gs), 0.0);
+	gs.stresses.asympt = 1.0;
+	gs.stresses.bad_rythm = -10.0;
+	gs.stresses.k_strict_stress = 5.0;
+	gs.stresses.k_not_strict_stress = 2.0;
+	gs.stresses.weight = 1.0;
+	//assert_eq!(res.measure_distance(&res2, &gs), 0.125);
+	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);
 }
