@@ -53,8 +53,22 @@ const ASSONANSES: phf::Map<char, (u8, u8)> = phf_map! {
 #[derive(Debug)]
 pub struct Vowel{
 	pub letter: char,
-	pub accent: u8, // 0 if None, 2 if secondary, 1 if primary
+	pub accent: u8, // 0 if None, 2 if secondary, 1 if primary\
 }
+impl Vowel{
+	const ALL: [char; 6] = ['а', 'о', 'э', 'и', 'ы', 'у'];
+}
+
+#[derive(Debug)]
+pub struct Consonant{
+	pub letter: char,
+	pub voiced: bool, // звонкая
+	pub palatalized: bool // мягкая
+}
+impl Consonant{
+	const ALL: [char; 13] = ['р', 'л', 'н', 'м', 'п', 'т', 'к', 'с', 'х', 'ш', 'ч', 'ф', 'й'];
+}
+
 
 impl Phone for Vowel{
 	fn similarity(&self, other: &Self) -> f32{
@@ -64,26 +78,68 @@ impl Phone for Vowel{
 		let res: f32 = ((x1 - x2).pow(2) + (y1 - y2).pow(2)).into();
 		res/26.0
 	}
-}
-
-#[derive(Debug)]
-pub struct Consonant{
-	pub letter: char,
-	pub voiced: bool, // звонкая
-	pub palatalized: bool // мягкая
+	fn from_vec(v: &Vec<char>) -> Self{
+		assert!(v.len() <= 2);
+		let accent = {
+			if v.len() > 1{
+				match v[1]{
+				'\'' => 1,
+				'`' => 2,
+				other => unreachable!("Bad identifier {}", other)
+				}
+			}
+			else{
+				0
+			}
+		};
+		let v: Self = Self{letter: v[0], accent: accent};
+		v
+	}
+	fn contains_char(c: &char) -> bool{
+		Self::ALL.contains(c)
+	}
 }
 
 impl Phone for Consonant{
 	fn similarity(&self, other: &Self) -> f32{
-		let (x1, y1) = ALLITERATION[&self.letter];
-		let (x2, y2) = ALLITERATION[&other.letter];
+		if self.letter == other.letter{
+			return 0.0;
+		}
+		if self.letter != 'й' && other.letter != 'й'{
+			let (x1, y1) = ALLITERATION[&self.letter];
+			let (x2, y2) = ALLITERATION[&other.letter];
 
-		(((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0))/65.0).into()
+			(((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0))/65.0).into()
+		}
+		else{
+			// already checked they are not equal
+			1.0 
+		}
+	}
+
+	fn from_vec(v: &Vec<char>) -> Self{
+		assert!(v.len() <= 3);
+		let mut voiced = false;
+		let mut palatalized = false;
+
+		for i in 1..v.len(){
+			match v[i]{
+				'*' => {voiced = true},
+				'^' => {palatalized = true},
+				other => unreachable!("Bad identifier {}", other)
+			}
+		}
+		let v: Self = Self{letter: v[0], voiced: voiced, palatalized: palatalized};
+		v
+	}
+	fn contains_char(c: &char) -> bool{
+		Self::ALL.contains(c)
 	}
 }
 
 
 pub fn transcript(w: &str, is_adj: bool) -> String{
+	// returns a postfix transcript like "к*ара'ш"
 	let mut w: Vec<char> = w.to_lowercase().chars().collect();
 	if is_adj{
     	replace_g_in_adj(&mut w);
@@ -245,8 +301,19 @@ fn j_replace_check(){
 	assert_eq!(transcript("кроманьонец", false), "кроман^йон^этс");
 }
 
+use std::time::{Instant};
+
 #[cfg(test)]
 #[test]
 fn testing(){
-	println!("{}, {}", 26/3, 26.0/3.0)
+
+	let current = Instant::now(); 
+	J_MARKERS.contains(&'а');
+	J_MARKERS.contains(&'г');
+    println!("Checked by vec in {:#?} seconds", current.elapsed());
+
+    let current = Instant::now(); 
+	transcript("кроманьонец", false);
+	transcript("Енёня`яя", false);
+    println!("Transcripted	 in {:#?} seconds", current.elapsed());
 }
