@@ -101,7 +101,7 @@ impl Phone for Vowel{
 
 
 	fn from_vec(v: &Vec<char>) -> Self{
-		// assert!(v.len() <= 2); !!! IMPORTANT: FIXING DICT
+		assert!(v.len() <= 2);// !!! IMPORTANT: FIXING DICT
 		let accent = {
 			if v.len() > 1{
 				match v[1]{
@@ -150,7 +150,7 @@ impl Phone for Consonant{
 			match v[i]{
 				'*' => {voiced = true},
 				'^' => {palatalized = true},
-				other => println!("Bad identifier {}", other)
+				other => unreachable!("Bad identifier {}", other)
 			}
 		}
 		let v: Self = Self{letter: v[0], voiced: voiced, palatalized: palatalized};

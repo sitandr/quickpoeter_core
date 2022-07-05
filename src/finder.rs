@@ -18,24 +18,23 @@ impl WordCollector{
 			
 			let mut declension: Vec<Word> = vec![];
 			let data = &zaliz[name];
-			let mut endings = data.split(';');
+			let mut all_data = data.split('+');
+			let part_of_speech: &str = all_data.next().unwrap();
+			let mut bases:Vec<&str> = all_data.collect();
+			let endings:Vec<&str> = bases.pop().unwrap().split(';').collect();
 
-			let header: &str = endings.next().unwrap();
 
-
-			let mut bases = header.split('+');
-			let part_of_speech = bases.next().unwrap();
+			
 			parts_of_speech.push(part_of_speech.to_string());
 			let is_adj: bool = match part_of_speech{
 				"п"|"мс"|"мс-п"|"г"|"числ-п" => true,
 				_ => false
 			};
 
-			let bases: Vec<&str> = bases.collect();
 			// println!("{}, {:?}", name, bases);
-			if bases[0].len() > 0{
+			/*if bases[0].len() > 0{
 				declension.push(Word::new(bases[0], is_adj));
-			}
+			}*/
 			
 
 			for mut e in endings{

@@ -200,6 +200,6 @@ fn test_try_loading(){
     let current = Instant::now();
     let w0 = Word::new("глазу'нья", false);
     let w2 = wc.words.iter().min_by_key(|w| OrderedFloat(w0.measure_distance(&w[0], &gs))).unwrap();
-    println!("Min: {:#?} — {}", w2, w0.measure_distance(&w2[0], &gs));
+    //println!("Min: {:#?} — {}", w2, w0.measure_distance(&w2[0], &gs));
     println!("Found words in {:#?} seconds", current.elapsed());
 }
