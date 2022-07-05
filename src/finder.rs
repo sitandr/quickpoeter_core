@@ -58,4 +58,41 @@ impl WordCollector{
 
 		WordCollector{words: words, parts_of_speech: parts_of_speech}
 	}
+	pub fn into_iter<'a>(&'a self, ignore: Vec<&'a str>) -> WordCollectIterator{
+		WordCollectIterator{wc: self, count: 0,
+		 count_form: 0, ignore_parts_of_speech: ignore}
+	}
+}
+
+pub struct WordCollectIterator<'a>{
+	wc: &'a WordCollector,
+	count: usize,
+	count_form: usize,
+	ignore_parts_of_speech: Vec<&'a str>
+}
+
+impl<'a> Iterator for WordCollectIterator<'a>{
+	type Item = &'a Word;
+	fn next(&mut self)-> Option<Self::Item> {
+		
+		let w_forms = &self.wc.words[self.count];
+		if self.count_form >= w_forms.len(){
+			self.count_form = 0;
+			self.count += 1;
+			if self.count >= self.wc.words.len(){
+				return None;
+			}
+			else{
+				return self.next();
+			}
+		}
+		else if self.ignore_parts_of_speech.contains(&&&*self.wc.parts_of_speech[self.count]){
+			self.count_form += 1;
+			self.next()
+		}
+		else{
+			self.count_form += 1;
+			Some(&w_forms[self.count_form - 1])
+		}
+	}
 }

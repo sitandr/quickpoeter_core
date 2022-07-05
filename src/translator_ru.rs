@@ -71,7 +71,7 @@ impl Vowel{
 		type A = Accent;
 		let k: f32 = match (self.accent, other.accent) {
 			(A::NoAccent, A::NoAccent) => 1.0,
-		    (A::NoAccent, A::Primary)|(A::Primary, A::NoAccent) => sett.bad_rythm,
+		    (A::NoAccent, A::Primary)|(A::Primary, A::NoAccent) => {return sett.bad_rythm},
 		    (A::NoAccent, A::Secondary)|(A::Secondary, A::NoAccent)|(A::Secondary, A::Secondary) => sett.k_not_strict_stress,
 		    (A::Primary, A::Primary)|(A::Primary, A::Secondary)|(A::Secondary, A::Primary) => sett.k_strict_stress
 		};

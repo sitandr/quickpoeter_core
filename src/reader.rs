@@ -199,7 +199,11 @@ fn test_try_loading(){
 
     let current = Instant::now();
     let w0 = Word::new("глазу'нья", false);
-    let w2 = wc.words.iter().min_by_key(|w| OrderedFloat(w0.measure_distance(&w[0], &gs))).unwrap();
-    //println!("Min: {:#?} — {}", w2, w0.measure_distance(&w2[0], &gs));
+    let mut iter = wc.into_iter(vec![]);
+    println!("{}, {}", wc.words[0][0], wc.words[1][0]);
+    println!("{} {} {}", iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap());
+    let w2 = iter.min_by_key(|w| OrderedFloat(w0.measure_distance(&w, &gs))).unwrap();
+    println!("Min: {} — {}", w2, w0.measure_distance(&w2, &gs));
+    println!("Глянула: {}", w0.measure_distance(&Word::new("гля'нула", false), &gs));
     println!("Found words in {:#?} seconds", current.elapsed());
 }

@@ -1,3 +1,6 @@
+
+use std::fmt::Formatter;
+use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings, MeaningSettings};
 
@@ -19,7 +22,8 @@ pub struct Syll{
 #[derive(Debug)]
 pub struct Word{
 	// unlike python version, the letter order stays the same
-	pub sylls: Vec<Syll> // syllables
+	pub sylls: Vec<Syll>, // syllables
+	src: String
 }
 
 impl Word{
@@ -44,7 +48,7 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls: sylls}
+		Self{sylls: sylls, src: w.to_string()}
 	}
 
 	fn has_cons_end(&self) -> bool{
@@ -168,6 +172,14 @@ fn word_to_unprocessed_vecs(w: &str, is_adj: bool) -> Vec<Vec<char>>{
 	res
 }
 
+impl Display for Word{
+
+	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+		write!(f, "{}", self.src)
+	}
+}
+
+
 struct WordConsIterator<'a>{
 	word: &'a Word,
 	count_syll: usize,
@@ -176,10 +188,8 @@ struct WordConsIterator<'a>{
 
 impl<'b> Iterator for WordConsIterator<'b>{
 	type Item = (usize, usize, &'b Consonant);
-	
 
 	fn next(&mut self) -> Option<Self::Item>{
-		self.count_lyll += 1;
 		let syll = &self.word.sylls[self.count_syll];
 		if self.count_lyll >= syll.trailing_consonants.len(){
 			self.count_lyll = 0;
@@ -192,8 +202,9 @@ impl<'b> Iterator for WordConsIterator<'b>{
 			}
 		}
 		else{
-			
-			Some((self.count_syll, self.count_lyll, &syll.trailing_consonants[self.count_lyll]))
+			let cl = self.count_lyll;
+			self.count_lyll += 1;
+			Some((self.count_syll, cl, &syll.trailing_consonants[cl]))
 		}
 
 	}
