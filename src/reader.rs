@@ -9,7 +9,7 @@ use half::f16;
 use std::time::{Instant};
 use std::hash::Hash;
 
-const VECTOR_DIM: usize = 150;
+pub const VECTOR_DIM: usize = 150;
 
 /* General settings */
 
@@ -174,8 +174,32 @@ fn test_try_settings(){
     let gs = read_settings();
     let w1 = Word::new("сло'во", false);
     let w2 = Word::new("сла'ва", false);
-    println!("{}", w1.measure_distance(&w2, &gs));
+    println!("слово-слава {}", w1.measure_distance(&w2, &gs));
     let w1 = Word::new("преда'тельство", false);
     let w2 = Word::new("рыда'тьустал", false);
-    println!("{}", w1.measure_distance(&w2, &gs));
+    println!("преда'тельство-рыдатьустал {}", w1.measure_distance(&w2, &gs));
+}
+
+use crate::finder::WordCollector;
+use ordered_float::OrderedFloat;
+
+#[cfg(test)]
+#[test]
+fn test_try_loading(){
+    let current = Instant::now(); 
+
+    let rd = RawData::load_default();
+    let gs = read_settings();
+    println!("Loaded raw in {:#?} seconds", current.elapsed());
+
+    let current = Instant::now(); 
+    let wc = WordCollector::new(&rd.index2word, rd.min_zaliz);
+    println!("Created words in {:#?} seconds", current.elapsed());
+    // println!("0: {:#?} ps {}, 10: {:#?} {}", wc.words[0], wc.parts_of_speech[0], wc.words[10], wc.parts_of_speech[10]);
+
+    let current = Instant::now();
+    let w0 = Word::new("глазу'нья", false);
+    let w2 = wc.words.iter().min_by_key(|w| OrderedFloat(w0.measure_distance(&w[0], &gs))).unwrap();
+    println!("Min: {:#?} — {}", w2, w0.measure_distance(&w2[0], &gs));
+    println!("Found words in {:#?} seconds", current.elapsed());
 }

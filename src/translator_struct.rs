@@ -51,7 +51,7 @@ impl Word{
 		self.sylls.last().unwrap().trailing_consonants.len() > 0
 	}
 
-	fn get_sorted_by_sylls<'a>(one: &'a Self, other: &'a Self) -> (&'a Self, &'a Self){
+	pub fn get_sorted_by_sylls<'a>(one: &'a Self, other: &'a Self) -> (&'a Self, &'a Self){
 		if one.sylls.len() > other.sylls.len(){
 			(other, one)
 		}
@@ -60,7 +60,7 @@ impl Word{
 		}
 	}
 
-	fn measure_vowel_dist(&self, other: &Self, sett: &StressSettings) -> f32{
+	pub fn measure_vowel_dist(&self, other: &Self, sett: &StressSettings) -> f32{
 		let mut dist = 0.0;
 		
 		for i1 in 0..self.sylls.len(){ // self is smaller
@@ -96,7 +96,7 @@ impl Word{
 		dist/(self.sylls.len() as f32).powf(sett.asympt)*sett.weight
 	}
 
-	fn measure_struct_dist(&self, other: &Self, sett: &ConsonantStructureSettings) -> f32{
+	pub fn measure_struct_dist(&self, other: &Self, sett: &ConsonantStructureSettings) -> f32{
 		let mut dist = 0.0;
 		
 		for i1 in 0..self.sylls.len(){ // self is smaller
@@ -108,22 +108,29 @@ impl Word{
 		dist/(self.sylls.len() as f32).powf(sett.asympt)*sett.weight
 	}
 
-	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
+	pub fn measure_misc(&self, other: &Self, sett: &MiscSettings) -> f32{
 		let mut dist = 0.0;
 		if self.has_cons_end() == other.has_cons_end(){
-			dist += gs.misc.same_cons_end;
+			dist += sett.same_cons_end;
 		}
-		let (first, second) = Self::get_sorted_by_sylls(self, other);
-		let length_diff: f32 = (second.sylls.len() - first.sylls.len()) as f32;
-		dist += gs.misc.length_diff_fine * length_diff;
 
-		println!("Other: {}", dist);
+		let length_diff: f32 = ((other.sylls.len() - self.sylls.len()) as f32).abs();
+		dist += sett.length_diff_fine * length_diff;
+		dist
+	}
+
+	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
+		let mut dist = 0.0;
+		let (first, second) = Self::get_sorted_by_sylls(self, other);
+
+		dist += first.measure_misc(second, &gs.misc);
+		//println!("Other: {}", dist);
 		dist += first.measure_vowel_dist(second, &gs.stresses);
-		println!("vowel: {}", first.measure_vowel_dist(second, &gs.stresses));
+		//println!("vowel: {}", first.measure_vowel_dist(second, &gs.stresses));
 		dist += first.measure_cons_dist(second, &gs.alliteration);
-		println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
+		//println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
 		dist += first.measure_struct_dist(second, &gs.consonant_structure);
-		println!("struct: {}", first.measure_struct_dist(second, &gs.consonant_structure));
+		//println!("struct: {}", first.measure_struct_dist(second, &gs.consonant_structure));
 
 		dist
 	}
@@ -211,11 +218,12 @@ fn create_word(){
 		meaning: MeaningSettings{weight: 0.0}};
 
 	assert_eq!(res.measure_distance(&res2, &gs), 0.0);
-	gs.stresses.asympt = 1.0;
+	/*gs.stresses.asympt = 1.0;
 	gs.stresses.bad_rythm = -10.0;
 	gs.stresses.k_strict_stress = 5.0;
 	gs.stresses.k_not_strict_stress = 2.0;
 	gs.stresses.weight = 1.0;
 	//assert_eq!(res.measure_distance(&res2, &gs), 0.125);
-	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);
+	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);*/
+	let res = Word::new("мно'ю", false);
 }

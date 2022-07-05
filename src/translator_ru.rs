@@ -101,7 +101,7 @@ impl Phone for Vowel{
 
 
 	fn from_vec(v: &Vec<char>) -> Self{
-		assert!(v.len() <= 2);
+		// assert!(v.len() <= 2); !!! IMPORTANT: FIXING DICT
 		let accent = {
 			if v.len() > 1{
 				match v[1]{
@@ -130,11 +130,13 @@ impl Phone for Consonant{
 		if self.letter != 'й' && other.letter != 'й'{
 			let (x1, y1) = ALLITERATION[&self.letter];
 			let (x2, y2) = ALLITERATION[&other.letter];
+			let mut k: f32 = if self.voiced == other.voiced {1.5} else {1.0};
+			if self.palatalized == other.palatalized {k *= 1.5};
 
-			(((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0))/65.0).into()
+			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0))/65.0 * k
 		}
 		else{
-			// already checked they are not equal
+			// й + …? — already checked they are not equal
 			1.0 
 		}
 	}
@@ -148,7 +150,7 @@ impl Phone for Consonant{
 			match v[i]{
 				'*' => {voiced = true},
 				'^' => {palatalized = true},
-				other => unreachable!("Bad identifier {}", other)
+				other => println!("Bad identifier {}", other)
 			}
 		}
 		let v: Self = Self{letter: v[0], voiced: voiced, palatalized: palatalized};
@@ -225,7 +227,7 @@ fn letter_replace(w: &mut Vec<char>){
 
 	let mut offset:usize = 0;
 	for i in 0..w.len(){ 
-		let ind = i + offset;
+		let ind = i.wrapping_add(offset);
 		let val = &w[ind];
 
 		let replacement = match val {
@@ -243,7 +245,7 @@ fn letter_replace(w: &mut Vec<char>){
 		};
 
 		if let Some(val) = replacement{
-			offset += val.len() - 1;
+			offset = offset.wrapping_add(val.len().wrapping_sub(1));
 			w.splice(ind..ind+1, val.into_iter());
 		}
 	}
