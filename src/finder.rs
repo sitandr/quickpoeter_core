@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-// use crate::reader::{RawData, VECTOR_DIM};
 use crate::translator_struct::Word;
 
 
+#[derive(Debug)]
 pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
 	pub parts_of_speech: Vec<String>

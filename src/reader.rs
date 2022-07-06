@@ -8,6 +8,7 @@ use serde_pickle::de::DeOptions;
 use half::f16;
 use std::time::{Instant};
 use std::hash::Hash;
+use crate::finder::WordCollector;
 
 pub const VECTOR_DIM: usize = 150;
 
@@ -63,7 +64,8 @@ pub struct GeneralSettings{
 pub struct RawData{
     pub index2word: Vec<String>,
     pub word2index: HashMap<String, u32>,
-    pub min_zaliz: HashMap<String, String>, // based on http://jurta.org/ru/nlp/rus/zaliz
+    //pub min_zaliz: HashMap<String, String>, // based on http://jurta.org/ru/nlp/rus/zaliz
+    pub wc: WordCollector,
     pub vectors: Vec<[f32;VECTOR_DIM]>,
     pub special_info: HashMap<String, u32>
 }
@@ -73,13 +75,14 @@ impl RawData{
         let i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
         let w2i = cloning_hash_from_list(i2w.clone());
 
-        let mz = pickle_read("res/r_min_zaliz.pkl");
+        let mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
+        let wc: WordCollector = WordCollector::new(&i2w, mz);
         let si = pickle_read("res/r_special_info.pkl");
 
         let vects = bin_read16("res/r_vectors_16.bc");
 
         Self {index2word: i2w, word2index: w2i,
-              min_zaliz: mz, special_info: si, vectors: vects}
+              wc: wc, special_info: si, vectors: vects}
 
     }
 }
@@ -180,9 +183,8 @@ fn test_try_settings(){
     println!("преда'тельство-рыдатьустал {}", w1.measure_distance(&w2, &gs));
 }
 
-use crate::finder::WordCollector;
 use ordered_float::OrderedFloat;
-
+/*
 #[cfg(test)]
 #[test]
 fn test_try_loading(){
@@ -205,3 +207,4 @@ fn test_try_loading(){
 
     println!("Found words in {:#?} seconds", current.elapsed());
 }
+*/

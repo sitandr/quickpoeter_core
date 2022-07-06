@@ -11,5 +11,5 @@ fn main() {
     let rd = reader::RawData::load_default();
     dbg!(&rd.index2word[10]);
     dbg!(&rd.word2index["слово"]);
-    dbg!(&rd.min_zaliz["слово"]);
+//    dbg!(&rd.min_zaliz["слово"]);
 }
