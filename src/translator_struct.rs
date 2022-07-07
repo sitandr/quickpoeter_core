@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings, MeaningSettings};
-
+use crate::reader::VECTOR_DIM;
 
 pub trait Phone{
 	fn distance(&self, second: &Self) -> f32;
@@ -23,11 +23,12 @@ pub struct Syll{
 pub struct Word{
 	// unlike python version, the letter order stays the same
 	pub sylls: Vec<Syll>, // syllables
-	src: String
+	pub src: String,
+	meaning: Option<[f32; VECTOR_DIM]>
 }
 
 impl Word{
-	pub fn new(w: &str, is_adj: bool) -> Self {
+	pub fn new(w: &str, is_adj: bool, meaning: Option<[f32; VECTOR_DIM]>) -> Self {
 		let unproc = word_to_unprocessed_vecs(w, is_adj);
 		let mut sylls = vec![];
 
@@ -48,7 +49,7 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls: sylls, src: w.to_string()}
+		Self{sylls: sylls, src: w.to_string(), meaning: meaning}
 	}
 
 	fn has_cons_end(&self) -> bool{
@@ -219,8 +220,8 @@ impl<'b> WordConsIterator<'b>{
 #[cfg(test)]
 #[test]
 fn create_word(){
-	let res = Word::new("дряньяня", false);
-	let res2 = Word::new("драчунья", false);
+	let res = Word::new("дряньяня", false, None);
+	let res2 = Word::new("драчунья", false, None);
 	let mut gs = GeneralSettings{
 	 	misc: MiscSettings{same_cons_end: 0.0, length_diff_fine: 0.0},
 		stresses: StressSettings{asympt: 0.0, bad_rythm: 0.0, k_not_strict_stress: 0.0, k_strict_stress: 0.0, weight: 0.0}, 
@@ -236,5 +237,5 @@ fn create_word(){
 	gs.stresses.weight = 1.0;
 	//assert_eq!(res.measure_distance(&res2, &gs), 0.125);
 	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);*/
-	let res = Word::new("мно'ю", false);
+	let res = Word::new("мно'ю", false, None);
 }

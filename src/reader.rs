@@ -60,31 +60,20 @@ pub struct GeneralSettings{
     pub meaning: MeaningSettings,
 }
 
-#[derive(Debug)]
-pub struct RawData{
-    pub index2word: Vec<String>,
-    pub word2index: HashMap<String, u32>,
-    //pub min_zaliz: HashMap<String, String>, // based on http://jurta.org/ru/nlp/rus/zaliz
-    pub wc: WordCollector,
-    pub vectors: Vec<[f32;VECTOR_DIM]>,
-    pub special_info: HashMap<String, u32>
-}
 
-impl RawData{
-    pub fn load_default() -> Self{
-        let i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
-        let w2i = cloning_hash_from_list(i2w.clone());
+pub fn load_default_word_collector() -> WordCollector{
+    let i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
 
-        let mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
-        let wc: WordCollector = WordCollector::new(&i2w, mz);
-        let si = pickle_read("res/r_special_info.pkl");
+//     let w2i = cloning_hash_from_list(i2w.clone());
+    let mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
+    let vects = bin_read16("res/r_vectors_16.bc");
 
-        let vects = bin_read16("res/r_vectors_16.bc");
+// Don't need it now
+//    let si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
 
-        Self {index2word: i2w, word2index: w2i,
-              wc: wc, special_info: si, vectors: vects}
 
-    }
+    println!("Loaded data");
+    WordCollector::new(i2w, mz, vects, read_settings())
 }
 
 use std::convert::TryInto;
@@ -134,6 +123,8 @@ pub fn read_settings() -> GeneralSettings{
     gensettings
 }
 
+// this method can generate w2i from i2w
+#[allow(dead_code)]
 fn cloning_hash_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, u32> {
     let mut hash = HashMap::new();
     for (ind, value) in list.into_iter().enumerate(){
@@ -152,15 +143,15 @@ fn test_loading(){
     let _i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
     println!("Loaded words in {:#?} seconds", current.elapsed());
 
-    let current = Instant::now(); 
+    /*let current = Instant::now(); 
     let _w2i_g: HashMap<String, u32> = cloning_hash_from_list(_i2w.clone());
-    println!("Created word2index in {:#?} seconds", current.elapsed());
+    println!("Created word2index in {:#?} seconds", current.elapsed());*/
 
     // Generating value-ind costs 9 ms (6 ms without copying vec),
 
     let current = Instant::now(); 
     let _mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
-    let _si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
+    // let _si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
     println!("Loaded dict in {:#?} seconds", current.elapsed());
 
     let _current = Instant::now();
@@ -175,36 +166,28 @@ use crate::translator_struct::Word;
 #[test]
 fn test_try_settings(){
     let gs = read_settings();
-    let w1 = Word::new("сло'во", false);
-    let w2 = Word::new("сла'ва", false);
+    let w1 = Word::new("сло'во", false, None);
+    let w2 = Word::new("сла'ва", false, None);
     println!("слово-слава {}", w1.measure_distance(&w2, &gs));
-    let w1 = Word::new("преда'тельство", false);
-    let w2 = Word::new("рыда'тьустал", false);
+    let w1 = Word::new("преда'тельство", false, None);
+    let w2 = Word::new("рыда'тьустал", false, None);
     println!("преда'тельство-рыдатьустал {}", w1.measure_distance(&w2, &gs));
 }
 
-use ordered_float::OrderedFloat;
-/*
 #[cfg(test)]
 #[test]
 fn test_try_loading(){
+    use ordered_float::OrderedFloat;
     let current = Instant::now(); 
-
-    let rd = RawData::load_default();
-    let gs = read_settings();
-    println!("Loaded raw in {:#?} seconds", current.elapsed());
-
-    let current = Instant::now(); 
-    let wc = WordCollector::new(&rd.index2word, rd.min_zaliz);
+    let wc = WordCollector::load_default();
     println!("Created words in {:#?} seconds", current.elapsed());
     // println!("0: {:#?} ps {}, 10: {:#?} {}", wc.words[0], wc.parts_of_speech[0], wc.words[10], wc.parts_of_speech[10]);
 
     let current = Instant::now();
-    let w0 = Word::new("глазу'нья", false);
+    let w0 = Word::new("глазу'нья", false, None);
     let iter = wc.into_iter(vec![]);
-    let w2 = iter.min_by_key(|w| OrderedFloat(w0.measure_distance(&w, &gs))).unwrap();
-    println!("Min: {} — {}", w2, w0.measure_distance(&w2, &gs));
+    let w2 = iter.min_by_key(|w| OrderedFloat(w0.measure_distance(&w, &wc.gs))).unwrap();
+    println!("Min: {} — {}", w2, w0.measure_distance(&w2, &wc.gs));
 
     println!("Found words in {:#?} seconds", current.elapsed());
 }
-*/

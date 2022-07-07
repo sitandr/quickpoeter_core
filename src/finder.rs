@@ -1,20 +1,58 @@
+use std::cmp::Ordering;
+use crate::reader::GeneralSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
+use crate::reader::{VECTOR_DIM, };
+use ordered_float::OrderedFloat;
 
 
-#[derive(Debug)]
+#[derive(Eq, Debug)]
+pub struct WordDistanceResult<'a>{
+	pub dist: OrderedFloat<f32>,
+	pub word_src: &'a str,
+}
+
+impl WordDistanceResult<'_>{
+	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gc: &'c GeneralSettings) -> WordDistanceResult<'b>{
+		let dist = OrderedFloat(to_find.measure_distance(measured, gc));
+
+		WordDistanceResult{dist: dist, word_src: &measured.src}
+	}
+}
+
+impl Ord for WordDistanceResult<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.dist.cmp(&other.dist)
+    }
+}
+
+impl PartialOrd for WordDistanceResult<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for WordDistanceResult<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.dist == other.dist
+    }
+}
+
 pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
-	pub parts_of_speech: Vec<String>
-//	meanings: Vec<[f32; VECTOR_DIM]>
+	pub parts_of_speech: Vec<String>,
+	i2w: Vec<String>,
+	meanings: Vec<[f32; VECTOR_DIM]>,
+	pub gs: GeneralSettings
 }
 
 impl WordCollector{
-	pub fn new(i2w: &Vec<String>, zaliz: HashMap<String, String>) -> WordCollector{
+	pub fn new(i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
 		let mut words: Vec<Vec<Word>> = vec![];
 		let mut parts_of_speech: Vec<String> = vec![];
 
-		for name in i2w{
+		for ind in 0..i2w.len(){
+			let name = &i2w[ind];
 			
 			let mut declension: Vec<Word> = vec![];
 			let data = &zaliz[name];
@@ -51,27 +89,54 @@ impl WordCollector{
 
 				base.push_str(e);
 				// println!("{}", base);
-				declension.push(Word::new(&base, is_adj));
+				declension.push(Word::new(&base, is_adj, Some(meanings[ind])));
 			}
 			words.push(declension);
 		}
 
-		WordCollector{words: words, parts_of_speech: parts_of_speech}
+		WordCollector{i2w: i2w, words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs}
 	}
-	pub fn into_iter<'a>(&'a self, ignore: Vec<&'a str>) -> WordCollectIterator{
+
+	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+		use std::collections::BinaryHeap;
+		use crate::reader::read_settings;
+
+		let mut heap = BinaryHeap::new();
+		let mut c: u32 = 0;
+		for w in self.into_iter(ignore){
+			c += 1;
+			if c%1_000 == 0{
+				println!("{}", c);
+			}
+			let res: WordDistanceResult<'a> = WordDistanceResult::new(&to_find, w, &read_settings());
+			heap.push(res);
+			if heap.len() > top_n as usize{
+				heap.pop(); // pops the word with the greatest distance
+			}
+		}
+
+		heap.into_sorted_vec()
+	}
+
+
+	pub fn load_default() -> Self{
+		crate::reader::load_default_word_collector()
+	}
+
+	pub fn into_iter<'a, 'b>(&'a self, ignore: Vec<&'b str>) -> WordCollectIterator<'a, 'b>{
 		WordCollectIterator{wc: self, count: 0,
 		 count_form: 0, ignore_parts_of_speech: ignore}
 	}
 }
 
-pub struct WordCollectIterator<'a>{
+pub struct WordCollectIterator<'a, 'b>{
 	wc: &'a WordCollector,
 	count: usize,
 	count_form: usize,
-	ignore_parts_of_speech: Vec<&'a str>
+	ignore_parts_of_speech: Vec<&'b str>
 }
 
-impl<'a> Iterator for WordCollectIterator<'a>{
+impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 	type Item = &'a Word;
 	fn next(&mut self)-> Option<Self::Item> {
 		
@@ -96,3 +161,12 @@ impl<'a> Iterator for WordCollectIterator<'a>{
 		}
 	}
 }
+
+/*
+#[cfg(test)]
+#[test]
+fn word_collect(){
+	let wc = WordCollector::load_default();
+	println!("Loaded");
+	println!("{:?}", wc.find_best(&Word::new("слово", false, None), vec![], 50));
+}*/
