@@ -70,9 +70,6 @@ pub fn load_default_word_collector() -> WordCollector{
 
 // Don't need it now
 //    let si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
-
-
-    println!("Loaded data");
     WordCollector::new(i2w, mz, vects, read_settings())
 }
 

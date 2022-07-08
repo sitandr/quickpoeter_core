@@ -106,6 +106,7 @@ impl WordCollector{
 		/// 2. Multi-threading for finding -> 2-3 times
 		/// 3. Directly reducing the time, e.g. replace phf hash with compile-time matches 
 		/// 4. Replace String to &str in words (not sure will give a speed up)
+		/// 5. Count meaner only one time -> ~ + 10%
 		use std::collections::BinaryHeap;
 
 		let mut heap = BinaryHeap::new();
@@ -114,9 +115,9 @@ impl WordCollector{
 
 		let mut collected = false;
 
-		for w in self.into_iter(ignore){
+		for w_forms in self.into_iter(ignore){
 			
-			let res = WordDistanceResult::new(&to_find, w, &self.gs);
+			let res = w_forms.iter().map(|w| WordDistanceResult::new(&to_find, w, &self.gs)).min().unwrap();
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -145,39 +146,31 @@ impl WordCollector{
 
 	pub fn into_iter<'a, 'b>(&'a self, ignore: Vec<&'b str>) -> WordCollectIterator<'a, 'b>{
 		WordCollectIterator{wc: self, count: 0,
-		 count_form: 0, ignore_parts_of_speech: ignore}
+		 ignore_parts_of_speech: ignore}
 	}
 }
 
 pub struct WordCollectIterator<'a, 'b>{
 	wc: &'a WordCollector,
 	count: usize,
-	count_form: usize,
 	ignore_parts_of_speech: Vec<&'b str>
 }
 
 impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
-	type Item = &'a Word;
+	type Item = &'a Vec<Word>;
 	fn next(&mut self)-> Option<Self::Item> {
-		
-		let w_forms = &self.wc.words[self.count];
-		if self.count_form >= w_forms.len(){
-			self.count_form = 0;
-			self.count += 1;
-			if self.count >= self.wc.words.len(){
-				return None;
-			}
-			else{
-				return self.next();
-			}
+		if self.count >= self.wc.words.len(){
+			return None;
 		}
-		else if self.ignore_parts_of_speech.contains(&&&*self.wc.parts_of_speech[self.count]){
-			self.count_form += 1;
+
+		let w_forms = &self.wc.words[self.count];
+		if self.ignore_parts_of_speech.contains(&&&*self.wc.parts_of_speech[self.count]){
+			self.count += 1;
 			self.next()
 		}
 		else{
-			self.count_form += 1;
-			Some(&w_forms[self.count_form - 1])
+			self.count += 1;
+			Some(w_forms)
 		}
 	}
 }
