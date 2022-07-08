@@ -173,21 +173,3 @@ fn test_try_settings(){
     let w2 = Word::new("рыда'тьустал", false, None);
     println!("преда'тельство-рыдатьустал {}", w1.measure_distance(&w2, &gs));
 }
-
-#[cfg(test)]
-#[test]
-fn test_try_loading(){
-    use ordered_float::OrderedFloat;
-    let current = Instant::now(); 
-    let wc = WordCollector::load_default();
-    println!("Created words in {:#?} seconds", current.elapsed());
-    // println!("0: {:#?} ps {}, 10: {:#?} {}", wc.words[0], wc.parts_of_speech[0], wc.words[10], wc.parts_of_speech[10]);
-
-    let current = Instant::now();
-    let w0 = Word::new("глазу'нья", false, None);
-    let iter = wc.into_iter(vec![]);
-    let w2 = iter.min_by_key(|w| OrderedFloat(w0.measure_distance(&w, &wc.gs))).unwrap();
-    println!("Min: {} — {}", w2, w0.measure_distance(&w2, &wc.gs));
-
-    println!("Found words in {:#?} seconds", current.elapsed());
-}

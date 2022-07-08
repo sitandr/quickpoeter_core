@@ -2,6 +2,7 @@ mod translator_struct;
 mod translator_ru;
 mod finder;
 mod reader;
+mod meaner;
 
 #[cfg(test)]
 mod tests;

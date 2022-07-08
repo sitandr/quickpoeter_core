@@ -1,20 +1,21 @@
+use std::time::Instant;
 use std::cmp::Ordering;
 use crate::reader::GeneralSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::{VECTOR_DIM, };
-use ordered_float::OrderedFloat;
+use ordered_float::NotNan;
 
 
-#[derive(Eq, Debug)]
+#[derive(Eq, Debug, Clone)]
 pub struct WordDistanceResult<'a>{
-	pub dist: OrderedFloat<f32>,
+	pub dist: NotNan<f32>,
 	pub word_src: &'a str,
 }
 
 impl WordDistanceResult<'_>{
 	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gc: &'c GeneralSettings) -> WordDistanceResult<'b>{
-		let dist = OrderedFloat(to_find.measure_distance(measured, gc));
+		let dist = NotNan::new(to_find.measure_distance(measured, gc)).unwrap();
 
 		WordDistanceResult{dist: dist, word_src: &measured.src}
 	}
@@ -42,7 +43,7 @@ pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
 	pub parts_of_speech: Vec<String>,
 	i2w: Vec<String>,
-	meanings: Vec<[f32; VECTOR_DIM]>,
+	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings
 }
 
@@ -98,20 +99,39 @@ impl WordCollector{
 	}
 
 	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+
+		/// # Plan of optimization
+		/// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
+		/// 1. Structurize the endings -> speed up up to ~20 times
+		/// 2. Multi-threading for finding -> 2-3 times
+		/// 3. Directly reducing the time, e.g. replace phf hash with compile-time matches 
+		/// 4. Replace String to &str in words (not sure will give a speed up)
 		use std::collections::BinaryHeap;
-		use crate::reader::read_settings;
 
 		let mut heap = BinaryHeap::new();
+		let mut max_d: NotNan<f32> = NotNan::new(f32::MAX).unwrap();
 		let mut c: u32 = 0;
+
+		let mut collected = false;
+
 		for w in self.into_iter(ignore){
-			c += 1;
-			if c%1_000 == 0{
-				println!("{}", c);
+			
+			let res = WordDistanceResult::new(&to_find, w, &self.gs);
+			if !collected{
+				c += 1;
+				heap.push(res);
+				if c >= top_n{
+					collected = true;
+					max_d = heap.peek().unwrap().dist;
+				}
 			}
-			let res: WordDistanceResult<'a> = WordDistanceResult::new(&to_find, w, &read_settings());
-			heap.push(res);
-			if heap.len() > top_n as usize{
-				heap.pop(); // pops the word with the greatest distance
+			else{
+				if max_d > res.dist{
+					heap.pop(); // pops the word with the greatest distance!
+					heap.push(res);
+					max_d = heap.peek().unwrap().dist;
+				}
+				
 			}
 		}
 
@@ -162,11 +182,13 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 	}
 }
 
-/*
 #[cfg(test)]
 #[test]
 fn word_collect(){
 	let wc = WordCollector::load_default();
+
+	let current = Instant::now();
 	println!("Loaded");
-	println!("{:?}", wc.find_best(&Word::new("слово", false, None), vec![], 50));
-}*/
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50));
+	println!("Found words in {:#?} seconds", current.elapsed());
+}

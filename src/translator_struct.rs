@@ -125,6 +125,7 @@ impl Word{
 	}
 
 	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
+		use crate::meaner::dist_arrays;
 		let mut dist = 0.0;
 		let (first, second) = Self::get_sorted_by_sylls(self, other);
 
@@ -135,6 +136,12 @@ impl Word{
 		dist += first.measure_cons_dist(second, &gs.alliteration);
 		//println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
 		dist += first.measure_struct_dist(second, &gs.consonant_structure);
+
+		if let Some(first_meaning) = self.meaning{
+			if let Some(other_meaning) = other.meaning{
+			dist += dist_arrays(first_meaning, other_meaning)*gs.meaning.weight;
+			}
+		}
 		//println!("struct: {}", first.measure_struct_dist(second, &gs.consonant_structure));
 
 		dist
