@@ -1,3 +1,14 @@
+/// # Plan of optimization
+/// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
+/// 1. Structurize the endings -> speed up up to ~20 times
+/// 2. Multi-threading for finding -> 2-3 times
+/// 3. Directly reducing the time, e.g. replace phf hash with compile-time matches 
+/// 4. Replace String to &str in words (not sure will give a speed up)
+/// 5. Count meaner only one time -> ~ + 10%
+
+
+use std::fmt::Formatter;
+use std::fmt::Debug;
 use std::time::Instant;
 use std::cmp::Ordering;
 use crate::reader::GeneralSettings;
@@ -5,19 +16,30 @@ use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::{VECTOR_DIM, };
 use ordered_float::NotNan;
+use crate::meaner::MeanField;
+use std::collections::BinaryHeap;
 
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Clone)]
 pub struct WordDistanceResult<'a>{
 	pub dist: NotNan<f32>,
-	pub word_src: &'a str,
+	pub word: &'a Word,
 }
 
 impl WordDistanceResult<'_>{
-	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gc: &'c GeneralSettings) -> WordDistanceResult<'b>{
-		let dist = NotNan::new(to_find.measure_distance(measured, gc)).unwrap();
+	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gs: &'c GeneralSettings) -> WordDistanceResult<'b>{
+		let dist = NotNan::new(to_find.measure_distance(measured, gs)).unwrap();
+		WordDistanceResult{dist: dist, word: &measured}
+	}
+	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Vec<Word>, gs: &'c GeneralSettings, field: Option<&MeanField>) -> WordDistanceResult<'b>{
+		let mut res = measured.iter().map(|w| WordDistanceResult::new(to_find, w, gs)).min().unwrap();
 
-		WordDistanceResult{dist: dist, word_src: &measured.src}
+		if let Some(field) = field{
+			if let Some(meaning) = res.word.meaning{
+				res.dist += field.dist(meaning) * gs.meaning.weight;
+			}
+		}
+		res
 	}
 }
 
@@ -39,10 +61,17 @@ impl PartialEq for WordDistanceResult<'_> {
     }
 }
 
+impl Eq for WordDistanceResult<'_>{}
+
+impl Debug for WordDistanceResult<'_>{
+	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+		write!(f, "{}: {}", self.word.src, self.dist)
+	}
+}
+
 pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
 	pub parts_of_speech: Vec<String>,
-	i2w: Vec<String>,
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings
 }
@@ -95,19 +124,12 @@ impl WordCollector{
 			words.push(declension);
 		}
 
-		WordCollector{i2w: i2w, words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs}
+		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs}
 	}
 
-	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
 
-		/// # Plan of optimization
-		/// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
-		/// 1. Structurize the endings -> speed up up to ~20 times
-		/// 2. Multi-threading for finding -> 2-3 times
-		/// 3. Directly reducing the time, e.g. replace phf hash with compile-time matches 
-		/// 4. Replace String to &str in words (not sure will give a speed up)
-		/// 5. Count meaner only one time -> ~ + 10%
-		use std::collections::BinaryHeap;
+
+	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32, field: Option<&MeanField>) -> Vec<WordDistanceResult<'a>>{
 
 		let mut heap = BinaryHeap::new();
 		let mut max_d: NotNan<f32> = NotNan::new(f32::MAX).unwrap();
@@ -117,7 +139,7 @@ impl WordCollector{
 
 		for w_forms in self.into_iter(ignore){
 			
-			let res = w_forms.iter().map(|w| WordDistanceResult::new(&to_find, w, &self.gs)).min().unwrap();
+			let res = WordDistanceResult::from_forms(to_find, w_forms, &self.gs, field);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -178,10 +200,14 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 #[cfg(test)]
 #[test]
 fn word_collect(){
-	let wc = WordCollector::load_default();
-
 	let current = Instant::now();
-	println!("Loaded");
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50));
+	let wc = WordCollector::load_default();
+	println!("Loaded words in {:#?}", current.elapsed());
+	let current = Instant::now();
+
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&MeanField::new(vec![wc.meanings[1525]]))));
 	println!("Found words in {:#?} seconds", current.elapsed());
+	/*println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50, None));
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, None));*/
+
 }

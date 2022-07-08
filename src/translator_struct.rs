@@ -24,7 +24,7 @@ pub struct Word{
 	// unlike python version, the letter order stays the same
 	pub sylls: Vec<Syll>, // syllables
 	pub src: String,
-	meaning: Option<[f32; VECTOR_DIM]>
+	pub meaning: Option<[f32; VECTOR_DIM]>
 }
 
 impl Word{
@@ -125,7 +125,7 @@ impl Word{
 	}
 
 	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
-		use crate::meaner::dist_arrays;
+
 		let mut dist = 0.0;
 		let (first, second) = Self::get_sorted_by_sylls(self, other);
 
@@ -136,13 +136,6 @@ impl Word{
 		dist += first.measure_cons_dist(second, &gs.alliteration);
 		//println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
 		dist += first.measure_struct_dist(second, &gs.consonant_structure);
-
-		if let Some(first_meaning) = self.meaning{
-			if let Some(other_meaning) = other.meaning{
-			dist += dist_arrays(first_meaning, other_meaning)*gs.meaning.weight;
-			}
-		}
-		//println!("struct: {}", first.measure_struct_dist(second, &gs.consonant_structure));
 
 		dist
 	}
@@ -229,7 +222,7 @@ impl<'b> WordConsIterator<'b>{
 fn create_word(){
 	let res = Word::new("дряньяня", false, None);
 	let res2 = Word::new("драчунья", false, None);
-	let mut gs = GeneralSettings{
+	let gs = GeneralSettings{
 	 	misc: MiscSettings{same_cons_end: 0.0, length_diff_fine: 0.0},
 		stresses: StressSettings{asympt: 0.0, bad_rythm: 0.0, k_not_strict_stress: 0.0, k_strict_stress: 0.0, weight: 0.0}, 
 		consonant_structure: ConsonantStructureSettings{asympt: 0.0, pow: 0.0, weight: 0.0},
@@ -244,5 +237,5 @@ fn create_word(){
 	gs.stresses.weight = 1.0;
 	//assert_eq!(res.measure_distance(&res2, &gs), 0.125);
 	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);*/
-	let res = Word::new("мно'ю", false, None);
+	let _res = Word::new("мно'ю", false, None);
 }
