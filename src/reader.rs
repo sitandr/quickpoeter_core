@@ -1,5 +1,6 @@
 // I shuld try using TAURI!
 
+use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -60,6 +61,10 @@ pub struct GeneralSettings{
     pub meaning: MeaningSettings,
 }
 
+#[derive(Deserialize)]
+pub struct MeanStrFields{
+    pub str_fields: HashMap<String, Vec<String>>,
+}
 
 pub fn load_default_word_collector() -> WordCollector{
     let i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
@@ -104,8 +109,8 @@ fn bin_read16(path: &str) -> Vec<[f32;VECTOR_DIM]>{
 }
 
 pub fn pickle_read<'a, T>(path: &str) -> T
-    where T: Deserialize<'a>
-    {
+where T: Deserialize<'a>
+{
     let file = File::open(path).expect(&("Error opening ".to_owned() + path));
     let reader = BufReader::new(file);
     let data: T = serde_pickle::from_reader(reader,
@@ -113,19 +118,28 @@ pub fn pickle_read<'a, T>(path: &str) -> T
     data
 }
 
-pub fn read_settings() -> GeneralSettings{
-    let file = File::open("config/coefficients.yaml").expect("Error opening coeff file");
+fn yaml_read<T>(path: &str) -> T
+where T: DeserializeOwned  
+{
+    let file = File::open(path).expect(&("Error opening ".to_owned() + path));
     let reader = BufReader::new(file);
-    let gensettings: GeneralSettings = serde_yaml::from_reader(reader).expect("Error reading coeff file");
-    gensettings
+    serde_yaml::from_reader(reader).expect(&("Error reading: ".to_owned() + path))
 }
 
+pub fn read_settings() -> GeneralSettings{
+    yaml_read("config/coefficients.yaml")
+}
+
+pub fn read_mean_fields() -> MeanStrFields{
+    yaml_read("config/fields.yaml")
+}
+
+
 // this method can generate w2i from i2w
-#[allow(dead_code)]
-fn cloning_hash_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, u32> {
+ pub fn index_map_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, usize> {
     let mut hash = HashMap::new();
     for (ind, value) in list.into_iter().enumerate(){
-        hash.insert(value, ind as u32);
+        hash.insert(value, ind as usize);
     }
     hash
 } 

@@ -14,7 +14,7 @@ use std::cmp::Ordering;
 use crate::reader::GeneralSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
-use crate::reader::{VECTOR_DIM, };
+use crate::reader::{VECTOR_DIM, index_map_from_list};
 use ordered_float::NotNan;
 use crate::meaner::MeanField;
 use std::collections::BinaryHeap;
@@ -27,19 +27,25 @@ pub struct WordDistanceResult<'a>{
 }
 
 impl WordDistanceResult<'_>{
+	/// This function doesn't count meaning (but measures everything else). Use `from forms` to measure it or add "meaning fine" manually
 	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gs: &'c GeneralSettings) -> WordDistanceResult<'b>{
 		let dist = NotNan::new(to_find.measure_distance(measured, gs)).unwrap();
 		WordDistanceResult{dist: dist, word: &measured}
 	}
+
 	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Vec<Word>, gs: &'c GeneralSettings, field: Option<&MeanField>) -> WordDistanceResult<'b>{
 		let mut res = measured.iter().map(|w| WordDistanceResult::new(to_find, w, gs)).min().unwrap();
+		res.add_meaning_fine(res.word.meaning, field, gs);
+		res
+	}
 
+	/// (adds *field distance* from meaning to self.dist, if both are not None)
+	pub fn add_meaning_fine(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, gs: &GeneralSettings){
 		if let Some(field) = field{
-			if let Some(meaning) = res.word.meaning{
-				res.dist += field.dist(meaning) * gs.meaning.weight;
+			if let Some(meaning) = meaning{
+				self.dist += field.dist(meaning) * gs.meaning.weight;
 			}
 		}
-		res
 	}
 }
 
@@ -73,7 +79,8 @@ pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
 	pub parts_of_speech: Vec<String>,
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
-	pub gs: GeneralSettings
+	pub gs: GeneralSettings,
+	pub w2i: HashMap<String, usize>
 }
 
 impl WordCollector{
@@ -124,7 +131,7 @@ impl WordCollector{
 			words.push(declension);
 		}
 
-		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs}
+		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs, w2i: index_map_from_list(i2w)}
 	}
 
 
@@ -205,7 +212,9 @@ fn word_collect(){
 	println!("Loaded words in {:#?}", current.elapsed());
 	let current = Instant::now();
 
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&MeanField::new(vec![wc.meanings[1525]]))));
+	let field = MeanField::new(vec![wc.meanings[wc.w2i["яйцо"]], wc.meanings[wc.w2i["смерть"]], wc.meanings[wc.w2i["убивать"]]]);
+
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&field)));
 	println!("Found words in {:#?} seconds", current.elapsed());
 	/*println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50, None));
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, None));*/
