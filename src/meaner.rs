@@ -1,4 +1,5 @@
 use crate::reader::{VECTOR_DIM};
+use crate::finder::WordCollector;
 
 pub struct MeanField{
 	average: [f32;VECTOR_DIM],
@@ -32,6 +33,30 @@ impl MeanField{
 			}
 		}
 		MeanField{average: average, sigmas: Some(sigma)}
+	}
+
+	pub fn from_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
+		Self::from_str(wc, &strs.iter().map(|s| &**s).collect())
+	}
+
+	pub fn from_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>{
+		use itertools::{Itertools, Either};
+		let (vecs, failured_strings): (Vec<_>, Vec<&str>) = strs.iter().partition_map(|s| 
+			{let r = wc.get_meaning(s);
+
+			match r {
+				Some(vec) => Either::Left(vec),
+				None => Either::Right(s),
+			}
+		});
+
+		if failured_strings.len() == 0{
+			Ok(Self::new(vecs))
+		}
+		else{
+			Err(failured_strings)
+		}
+
 	}
 
 	fn from_single(vector: [f32;VECTOR_DIM]) -> MeanField{

@@ -7,6 +7,7 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
+use crate::MeanStrFields;
 use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::time::Instant;
@@ -177,6 +178,14 @@ impl WordCollector{
 		WordCollectIterator{wc: self, count: 0,
 		 ignore_parts_of_speech: ignore}
 	}
+
+
+	pub fn get_meaning(&self, s: &str) -> Option<[f32; VECTOR_DIM]>{
+		match self.w2i.get(s){
+			Some(ind) => Some(self.meanings[*ind]),
+			None => None
+		}
+	}
 }
 
 pub struct WordCollectIterator<'a, 'b>{
@@ -209,10 +218,11 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 fn word_collect(){
 	let current = Instant::now();
 	let wc = WordCollector::load_default();
+	let mf = MeanStrFields::load_default();
 	println!("Loaded words in {:#?}", current.elapsed());
 	let current = Instant::now();
 
-	let field = MeanField::new(vec![wc.meanings[wc.w2i["яйцо"]], wc.meanings[wc.w2i["смерть"]], wc.meanings[wc.w2i["убивать"]]]);
+	let field = MeanField::from_strings(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&field)));
 	println!("Found words in {:#?} seconds", current.elapsed());

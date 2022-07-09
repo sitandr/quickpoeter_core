@@ -61,9 +61,21 @@ pub struct GeneralSettings{
     pub meaning: MeaningSettings,
 }
 
+impl GeneralSettings{
+    pub fn load_default()-> GeneralSettings{
+        yaml_read("config/coefficients.yaml")
+    }
+}
+
 #[derive(Deserialize)]
 pub struct MeanStrFields{
     pub str_fields: HashMap<String, Vec<String>>,
+}
+
+impl MeanStrFields{
+    pub fn load_default()  -> MeanStrFields{
+        MeanStrFields{str_fields: yaml_read("config/fields.yaml")}
+    }
 }
 
 pub fn load_default_word_collector() -> WordCollector{
@@ -75,7 +87,7 @@ pub fn load_default_word_collector() -> WordCollector{
 
 // Don't need it now
 //    let si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
-    WordCollector::new(i2w, mz, vects, read_settings())
+    WordCollector::new(i2w, mz, vects, GeneralSettings::load_default())
 }
 
 use std::convert::TryInto;
@@ -126,14 +138,6 @@ where T: DeserializeOwned
     serde_yaml::from_reader(reader).expect(&("Error reading: ".to_owned() + path))
 }
 
-pub fn read_settings() -> GeneralSettings{
-    yaml_read("config/coefficients.yaml")
-}
-
-pub fn read_mean_fields() -> MeanStrFields{
-    yaml_read("config/fields.yaml")
-}
-
 
 // this method can generate w2i from i2w
  pub fn index_map_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, usize> {
@@ -176,7 +180,8 @@ use crate::translator_struct::Word;
 #[cfg(test)]
 #[test]
 fn test_try_settings(){
-    let gs = read_settings();
+    println!("{:?}", MeanStrFields::load_default().str_fields["Art"]);
+    let gs = GeneralSettings::load_default();
     let w1 = Word::new("сло'во", false, None);
     let w2 = Word::new("сла'ва", false, None);
     println!("слово-слава {}", w1.measure_distance(&w2, &gs));
