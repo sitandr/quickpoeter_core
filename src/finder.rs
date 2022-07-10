@@ -7,7 +7,9 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
-use crate::MeanStrFields;
+use std::cmp::max;
+use std::cmp::min;
+use crate::reader::MeanStrFields;
 use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::time::Instant;
@@ -81,13 +83,16 @@ pub struct WordCollector{
 	pub parts_of_speech: Vec<String>,
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings,
-	pub w2i: HashMap<String, usize>
+	pub w2i: HashMap<String, usize>,
+	pub i2w: Vec<String>
 }
 
 impl WordCollector{
-	pub fn new(i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
+	pub fn new(mut 	i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
 		let mut words: Vec<Vec<Word>> = vec![];
 		let mut parts_of_speech: Vec<String> = vec![];
+
+		i2w.sort_unstable(); // sorting speeds up the speed of stress getting
 
 		for ind in 0..i2w.len(){
 			let name = &i2w[ind];
@@ -132,7 +137,7 @@ impl WordCollector{
 			words.push(declension);
 		}
 
-		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs, w2i: index_map_from_list(i2w)}
+		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs, w2i: index_map_from_list(i2w.clone()), i2w: i2w}
 	}
 
 
@@ -186,6 +191,38 @@ impl WordCollector{
 			None => None
 		}
 	}
+
+	pub fn get_stressed_form(&self, not_stressed: &str) -> Option<&str>{
+		// 400 μs if O(log) works
+		// up to 500 ms if doesn't
+		// (tested om power-saving mode of laptop)
+
+		#[inline]
+		fn remove_stresses(s: &str) -> String{
+			s.replace("'", "").replace("`", "")
+		}
+
+		let n_s = not_stressed.to_owned(); 
+		let ind = self.i2w.partition_point(|s| s < &n_s);
+
+		for i in max(ind-5, 0)..min(ind+5, self.words.len()){
+			for word_form in &self.words[i]{
+				if remove_stresses(&word_form.src) == not_stressed{
+					return Some(&word_form.src);
+				}
+			}
+		}
+
+		// brute force… Very slow (~700 000 operations).
+		for w_fs in &self.words{
+			for word_form in w_fs{
+				if remove_stresses(&word_form.src) == not_stressed{
+					return Some(&word_form.src);
+				}
+			}
+		}
+		None
+	}
 }
 
 pub struct WordCollectIterator<'a, 'b>{
@@ -228,5 +265,9 @@ fn word_collect(){
 	println!("Found words in {:#?} seconds", current.elapsed());
 	/*println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50, None));
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, None));*/
+
+	let current = Instant::now();
+	println!("{:?}", wc.get_stressed_form("варг"));
+	println!("Found in {:#?}", current.elapsed());
 
 }

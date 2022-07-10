@@ -13,7 +13,7 @@ use crate::reader::MeanStrFields;
 use crate::finder::WordCollector;
 use clap::Parser;
 
-/// Simple program to greet a person
+/// Compex tool for finding ryphms;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -25,11 +25,28 @@ struct Args {
     #[clap(short, long, value_parser)]
     mean: Option<String>,
 
-    /// Remove parts of speech
+    /// Remove some parts of speech
+    /// List of available parts of speech (буквы везде русские):
+    /// с      существительное
+    /// п      прилагательное
+    /// мс     местоимение-существительное
+    /// мс-п   местоименное-прилагательное
+    /// г      глагол
+    /// н      наречие
+    /// числ   числительное
+    /// числ-п счётное прилагательное
+    /// вводн  вводное слово
+    /// межд   межометие
+    /// предик предикатив
+    /// предл  предлог
+    /// союз   союз
+    /// сравн  сравнительная степень
+    /// част   частица
+    /// ?      куски фразеологизмов и т.п.
     #[clap(short, long, value_parser)]
     rps: Option<String>,
 
-    /// Remove parts of speech
+    /// Number of selected best matches
     #[clap(short, long, value_parser, default_value_t=100)]
     top_n: u8,
 }
