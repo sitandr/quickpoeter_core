@@ -72,6 +72,19 @@ fn main() {
         None => vec![]
     };
 
-    println!("{:?}", wc.find_best(&Word::new(&args.to_find, false, None), rps.iter().map(|s| &**s).collect(), args.top_n.into(), field_ref));
+    let mut to_find = args.to_find;
+
+    if !to_find.contains('\''){
+        let found = wc.get_stressed_form(&to_find);
+        if let Some(founded_some) = found{
+            to_find = founded_some.to_string();
+        }
+        else{
+            println!("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)");
+            return;
+        }
+    }
+
+    println!("{:?}", wc.find_best(&Word::new(&to_find, false, None), rps.iter().map(|s| &**s).collect(), args.top_n.into(), field_ref));
     
 }

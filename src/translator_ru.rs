@@ -114,8 +114,13 @@ impl Phone for Vowel{
 				Accent::NoAccent
 			}
 		};
-		let v: Self = Self{letter: v[0], accent: accent};
-		v
+		let mut letter = v[0];
+
+		if letter == 'о' && v.len() == 1{ // безударная "о" становится "а"
+			letter = 'а';
+		}
+
+		Self{letter: letter, accent: accent}
 	}
 	fn contains_char(c: &char) -> bool{
 		Self::ALL.contains(c)
