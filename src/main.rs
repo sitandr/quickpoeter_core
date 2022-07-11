@@ -75,9 +75,9 @@ fn main() {
     let mut to_find = args.to_find;
 
     if !to_find.contains('\''){
-        let found = wc.get_stressed_form(&to_find);
+        let found = wc.get_word(&to_find);
         if let Some(founded_some) = found{
-            to_find = founded_some.to_string();
+            to_find = founded_some.src.to_string();
         }
         else{
             println!("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)");

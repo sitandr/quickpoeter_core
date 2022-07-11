@@ -5,6 +5,13 @@ use crate::translator_ru::{Vowel, Consonant, transcript};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings, MeaningSettings};
 use crate::reader::VECTOR_DIM;
 
+#[derive(Debug, Copy, Clone)]
+pub enum Accent{
+	NoAccent,
+	Primary,
+	Secondary,
+}
+
 pub trait Phone{
 	fn distance(&self, second: &Self) -> f32;
 	fn from_vec(v: &Vec<char>) -> Self;
@@ -38,7 +45,9 @@ impl Word{
 		for mut phone_vec in unproc{
 			let type_ = phone_vec.pop().unwrap();
 			if type_ == 'v'{
-				sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
+				if l_vowel.is_some() || t_cons.len() > 0{ // this is not start of the word
+					sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
+				}
 				l_vowel = Some(Vowel::from_vec(&phone_vec));
 				t_cons = vec![];
 			}
@@ -142,20 +151,38 @@ impl Word{
 	fn into_iter(&self) -> WordConsIterator{
 		WordConsIterator::new(self)
 	}
+
+	/// Returns position of primary stress and vec of positions of secondary
+	pub fn get_stresses(&self) -> (usize, Vec<usize>){
+		let mut primary = usize::MAX;
+		let mut secondary = vec![];
+		for (ind, syll) in self.sylls.iter().enumerate(){
+			if let Some(vowel) = &syll.leading_vowel{
+				match vowel.accent{
+					Accent::Primary => primary = ind,
+					Accent::Secondary => secondary.push(ind),
+					Accent::NoAccent => {}
+				}
+			}
+		}
+		assert_ne!(primary, usize::MAX);
+		(primary, secondary)
+	}
 }
 
+/// returns vec of vecs, where each of them is like [letter, …signs… (many possible), v/c (vowel or consonant marker)]
 fn word_to_unprocessed_vecs(w: &str, is_adj: bool) -> Vec<Vec<char>>{
-	// returns vec of vecs, where each of them is like [letter, …signs… (many possible), v/c (vowel or consonant marker)]
 	let w = transcript(w, is_adj);
 	let mut res = vec![];
 	let mut this_vec = vec![];
 	let mut current_type: char = '?'; // unknown type
 
 	for l in w.chars(){
+		// stores tha type of new letter
 		let new_current = {
 			if Vowel::contains_char(&l){Some('v')}
 			else if Consonant::contains_char(&l){Some('c')}
-			else {None}
+			else {None} // some symbol
 		};
 
 		if let Some(new_current) = new_current{
@@ -215,6 +242,11 @@ impl<'b> WordConsIterator<'b>{
 	fn new(w: &'b Word) -> Self{
 		WordConsIterator{word: w, count_syll:0, count_lyll:0}
 	}
+}
+
+#[test]
+fn check_unproc(){
+	dbg!(Word::new("ударе'ние", false, None));
 }
 
 #[cfg(test)]

@@ -7,8 +7,6 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
-use std::cmp::max;
-use std::cmp::min;
 use crate::reader::MeanStrFields;
 use std::fmt::Formatter;
 use std::fmt::Debug;
@@ -132,7 +130,9 @@ impl WordCollector{
 
 				base.push_str(e);
 				// println!("{}", base);
-				declension.push(Word::new(&base, is_adj, Some(meanings[ind])));
+				let w = Word::new(&base, is_adj, Some(meanings[ind]));
+				// w.get_stresses(); // checks if all have actual stress
+				declension.push(w);
 			}
 			words.push(declension);
 		}
@@ -192,7 +192,7 @@ impl WordCollector{
 		}
 	}
 
-	pub fn get_stressed_form(&self, not_stressed: &str) -> Option<&str>{
+	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
 		// 400 μs if O(log) works
 		// up to 500 ms if doesn't
 		// (tested om power-saving mode of laptop)
@@ -204,11 +204,15 @@ impl WordCollector{
 
 		let n_s = not_stressed.to_owned(); 
 		let ind = self.i2w.partition_point(|s| s < &n_s);
+		// println!("{}", not_stressed);
 
-		for i in max(ind-5, 0)..min(ind+5, self.words.len()){
+		let min_i = {if ind > 5 {ind - 5} else {0}};
+		let max_i = {if ind < self.words.len() - 5 {ind + 5} else {self.words.len()}};
+
+		for i in min_i..max_i{
 			for word_form in &self.words[i]{
 				if remove_stresses(&word_form.src) == not_stressed{
-					return Some(&word_form.src);
+					return Some(&word_form);
 				}
 			}
 		}
@@ -217,7 +221,7 @@ impl WordCollector{
 		for w_fs in &self.words{
 			for word_form in w_fs{
 				if remove_stresses(&word_form.src) == not_stressed{
-					return Some(&word_form.src);
+					return Some(&word_form);
 				}
 			}
 		}
@@ -267,7 +271,7 @@ fn word_collect(){
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, None));*/
 
 	let current = Instant::now();
-	println!("{:?}", wc.get_stressed_form("варг"));
+	println!("{:?}", wc.get_word("ударение").unwrap().get_stresses());
 	println!("Found in {:#?}", current.elapsed());
 
 }

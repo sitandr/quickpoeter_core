@@ -51,12 +51,6 @@ const ASSONANSES: phf::Map<char, (i8, i8)> = phf_map! {
 	'у' => (3, 3)
 };
 
-#[derive(Debug, Copy, Clone)]
-pub enum Accent{
-	NoAccent,
-	Primary,
-	Secondary,
-}
 
 #[derive(Debug)]
 pub struct Vowel{
@@ -183,6 +177,9 @@ pub fn transcript(w: &str, is_adj: bool) -> String{
 
 fn j_replace(w: &mut Vec<char>){
 	if J_VOWELS.contains(&w[0]){ // енот — "й" в начале слова
+		if w[0] == 'ё'{
+			w.insert(1, '\'');
+		}
 		w[0] = J_MAP[&w[0]];
 		w.insert(0, 'й')
 	}
@@ -328,6 +325,7 @@ fn j_replace_check(){
 	assert_eq!(transcript("дождь", false), "т*ошт^");
 	assert_eq!(transcript("его", true), "йэф*о");
 	assert_eq!(transcript("кроманьонец", false), "кроман^йон^этс");
+	assert_eq!(transcript("Ёжик", false), "йо'ш*ик");
 }
 
 use std::time::{Instant};
