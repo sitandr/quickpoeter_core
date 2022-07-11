@@ -153,16 +153,21 @@ impl Word{
 	}
 
 	/// Returns position of primary stress and vec of positions of secondary
+	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (strating from 0). 
 	pub fn get_stresses(&self) -> (usize, Vec<usize>){
 		let mut primary = usize::MAX;
 		let mut secondary = vec![];
+		let mut offset = 0;
 		for (ind, syll) in self.sylls.iter().enumerate(){
 			if let Some(vowel) = &syll.leading_vowel{
 				match vowel.accent{
-					Accent::Primary => primary = ind,
-					Accent::Secondary => secondary.push(ind),
+					Accent::Primary => primary = ind - offset,
+					Accent::Secondary => secondary.push(ind - offset),
 					Accent::NoAccent => {}
 				}
+			}
+			else{
+				offset += 1;
 			}
 		}
 		assert_ne!(primary, usize::MAX);
@@ -245,8 +250,10 @@ impl<'b> WordConsIterator<'b>{
 }
 
 #[test]
-fn check_unproc(){
-	dbg!(Word::new("ударе'ние", false, None));
+fn check_stress(){
+	assert_eq!(Word::new("ещё", false, None).get_stresses().0, 1);
+	assert_eq!(Word::new("лома'ть", false, None).get_stresses().0, 1);
+	assert_eq!(Word::new("ско'лько", false, None).get_stresses().0, 0);
 }
 
 #[cfg(test)]
