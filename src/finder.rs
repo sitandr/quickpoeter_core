@@ -7,10 +7,8 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
-use crate::reader::MeanStrFields;
 use std::fmt::Formatter;
 use std::fmt::Debug;
-use std::time::Instant;
 use std::cmp::Ordering;
 use crate::reader::GeneralSettings;
 use std::collections::HashMap;
@@ -257,6 +255,8 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 #[cfg(test)]
 #[test]
 fn word_collect(){
+	use crate::reader::MeanStrFields;
+	use std::time::Instant;
 	let current = Instant::now();
 	let wc = WordCollector::load_default();
 	let mf = MeanStrFields::load_default();

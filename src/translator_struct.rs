@@ -2,7 +2,7 @@
 use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript};
-use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings, MeaningSettings};
+use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 use crate::reader::VECTOR_DIM;
 
 #[derive(Debug, Copy, Clone)]
@@ -153,7 +153,8 @@ impl Word{
 	}
 
 	/// Returns position of primary stress and vec of positions of secondary
-	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (strating from 0). 
+	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (strating from 0).
+	#[allow(dead_code)] 
 	pub fn get_stresses(&self) -> (usize, Vec<usize>){
 		let mut primary = usize::MAX;
 		let mut secondary = vec![];
@@ -259,6 +260,7 @@ fn check_stress(){
 #[cfg(test)]
 #[test]
 fn create_word(){
+	use crate::reader::{MeaningSettings};
 	let res = Word::new("дряньяня", false, None);
 	let res2 = Word::new("драчунья", false, None);
 	let gs = GeneralSettings{

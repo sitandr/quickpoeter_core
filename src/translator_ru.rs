@@ -328,11 +328,12 @@ fn j_replace_check(){
 	assert_eq!(transcript("Ёжик", false), "йо'ш*ик");
 }
 
-use std::time::{Instant};
+
 
 #[cfg(test)]
 #[test]
 fn testing(){
+	use std::time::{Instant};
 
 	let current = Instant::now(); 
 	let _ = J_MARKERS.contains(&'а');

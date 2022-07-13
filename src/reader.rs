@@ -7,7 +7,6 @@ use std::io::BufReader;
 use serde::{Deserialize};
 use serde_pickle::de::DeOptions;
 use half::f16;
-use std::time::{Instant};
 use std::hash::Hash;
 use crate::finder::WordCollector;
 
@@ -152,6 +151,7 @@ where T: DeserializeOwned
 #[cfg(test)]
 #[test]
 fn test_loading(){
+    use std::time::{Instant};
     println!("Loading data, this will take a while…");
 
     let current = Instant::now(); 
@@ -175,11 +175,12 @@ fn test_loading(){
     println!("Loaded meaning in {:#?} seconds", current.elapsed());
 }
 
-use crate::translator_struct::Word;
+
 
 #[cfg(test)]
 #[test]
 fn test_try_settings(){
+    use crate::translator_struct::Word;
     println!("{:?}", MeanStrFields::load_default().str_fields["Art"]);
     let gs = GeneralSettings::load_default();
     let w1 = Word::new("сло'во", false, None);
