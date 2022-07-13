@@ -96,7 +96,7 @@ impl Word{
 		for (is, il, c1) in self.into_iter(){
 			for (is2, il2, c2) in other.into_iter(){
 				let slength = self.sylls[is].trailing_consonants.len();
-				let slength2 = other.sylls[is].trailing_consonants.len();
+				let slength2 = other.sylls[is2].trailing_consonants.len();
 				let sum_syl_len = (slength + slength2) as f32;
 
 				let d1 = (self.sylls.len() - is) as f32 + (slength - il) as f32 /sum_syl_len;
