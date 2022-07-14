@@ -1,5 +1,6 @@
 use crate::reader::{VECTOR_DIM};
 use crate::finder::WordCollector;
+use ordered_float::NotNan;
 
 pub struct MeanField{
 	average: [f32;VECTOR_DIM],
@@ -32,6 +33,14 @@ impl MeanField{
 				sigma[j] = sigma[j].sqrt();
 			}
 		}
+
+		if n > 1{
+			let m = sigma.iter().map(|x| NotNan::new(*x).unwrap()).min().unwrap().into_inner();
+			for j in 0..VECTOR_DIM{
+				sigma[j] /= m;
+			}
+		}
+
 		MeanField{average: average, sigmas: Some(sigma)}
 	}
 
@@ -68,7 +77,7 @@ impl MeanField{
 		if let Some(sigma) = self.sigmas{
 			let mut dist: f32 = 0.0;
 			for i in 0..VECTOR_DIM{
-				dist += (vector[i] - self.average[i]).abs().powf(2.0)/sigma[i]/33.0;
+				dist += ((vector[i] - self.average[i]).abs()).powf(0.5)/sigma[i]/10.0;
 			}
 			dist
 		}
@@ -86,3 +95,4 @@ pub fn dist_arrays(v1: [f32;VECTOR_DIM], v2: [f32;VECTOR_DIM]) -> f32{
 	}
 	sum
 }
+

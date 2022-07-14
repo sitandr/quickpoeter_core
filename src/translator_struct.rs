@@ -133,20 +133,16 @@ impl Word{
 		dist
 	}
 
-	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> f32{
+	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> (f32, f32, f32, f32){
 
-		let mut dist = 0.0;
 		let (first, second) = Self::get_sorted_by_sylls(self, other);
 
-		dist += first.measure_misc(second, &gs.misc);
-		//println!("Other: {}", dist);
-		dist += first.measure_vowel_dist(second, &gs.stresses);
-		//println!("vowel: {}", first.measure_vowel_dist(second, &gs.stresses));
-		dist += first.measure_cons_dist(second, &gs.alliteration);
-		//println!("cons: {}", first.measure_cons_dist(second, &gs.alliteration));
-		dist += first.measure_struct_dist(second, &gs.consonant_structure);
+		let misc = first.measure_misc(second, &gs.misc);
+		let vowel = first.measure_vowel_dist(second, &gs.stresses);
+		let cons = first.measure_cons_dist(second, &gs.alliteration);
+		let structure = first.measure_struct_dist(second, &gs.consonant_structure);
 
-		dist
+		(misc, vowel, cons, structure)
 	}
 	fn into_iter(&self) -> WordConsIterator{
 		WordConsIterator::new(self)
@@ -255,28 +251,4 @@ fn check_stress(){
 	assert_eq!(Word::new("ещё", false, None).get_stresses().0, 1);
 	assert_eq!(Word::new("лома'ть", false, None).get_stresses().0, 1);
 	assert_eq!(Word::new("ско'лько", false, None).get_stresses().0, 0);
-}
-
-#[cfg(test)]
-#[test]
-fn create_word(){
-	use crate::reader::{MeaningSettings};
-	let res = Word::new("дряньяня", false, None);
-	let res2 = Word::new("драчунья", false, None);
-	let gs = GeneralSettings{
-	 	misc: MiscSettings{same_cons_end: 0.0, length_diff_fine: 0.0},
-		stresses: StressSettings{asympt: 0.0, bad_rythm: 0.0, k_not_strict_stress: 0.0, k_strict_stress: 0.0, weight: 0.0}, 
-		consonant_structure: ConsonantStructureSettings{asympt: 0.0, pow: 0.0, weight: 0.0},
-		alliteration: AlliterationSettings{asympt: 0.0, pow_coord_delta: 0.0, pow_syll_ending: 0.0, shift_coord: 0.0, shift_syll_ending: 0.0, weight: 0.0},
-		meaning: MeaningSettings{weight: 0.0}};
-
-	assert_eq!(res.measure_distance(&res2, &gs), 0.0);
-	/*gs.stresses.asympt = 1.0;
-	gs.stresses.bad_rythm = -10.0;
-	gs.stresses.k_strict_stress = 5.0;
-	gs.stresses.k_not_strict_stress = 2.0;
-	gs.stresses.weight = 1.0;
-	//assert_eq!(res.measure_distance(&res2, &gs), 0.125);
-	//assert_eq!(res.measure_distance(&Word::new("драчу'нья", false), &gs), -1.25);*/
-	let _res = Word::new("мно'ю", false, None);
 }

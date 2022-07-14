@@ -185,8 +185,8 @@ fn test_try_settings(){
     let gs = GeneralSettings::load_default();
     let w1 = Word::new("сло'во", false, None);
     let w2 = Word::new("сла'ва", false, None);
-    println!("слово-слава {}", w1.measure_distance(&w2, &gs));
+    println!("слово-слава {:?}", w1.measure_distance(&w2, &gs));
     let w1 = Word::new("преда'тельство", false, None);
     let w2 = Word::new("рыда'тьустал", false, None);
-    println!("преда'тельство-рыдатьустал {}", w1.measure_distance(&w2, &gs));
+    println!("преда'тельство-рыдатьустал {:?}", w1.measure_distance(&w2, &gs));
 }

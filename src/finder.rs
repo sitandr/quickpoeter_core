@@ -7,6 +7,7 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
+use std::iter::zip;
 use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::cmp::Ordering;
@@ -22,14 +23,22 @@ use std::collections::BinaryHeap;
 #[derive(Clone)]
 pub struct WordDistanceResult<'a>{
 	pub dist: NotNan<f32>,
+	misc: f32,
+	vowel: f32,
+	cons: f32,
+	structure: f32,
+	meaning: f32,
 	pub word: &'a Word,
 }
 
 impl WordDistanceResult<'_>{
 	/// This function doesn't count meaning (but measures everything else). Use `from forms` to measure it or add "meaning fine" manually
 	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gs: &'c GeneralSettings) -> WordDistanceResult<'b>{
-		let dist = NotNan::new(to_find.measure_distance(measured, gs)).unwrap();
-		WordDistanceResult{dist: dist, word: &measured}
+
+		let (misc, vowel, cons, structure) = to_find.measure_distance(measured, gs);
+
+		let dist = NotNan::new(misc + vowel + cons + structure).unwrap();
+		WordDistanceResult{dist: dist, word: &measured, misc:misc, vowel: vowel, cons: cons, structure: structure, meaning: 0.0}
 	}
 
 	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Vec<Word>, gs: &'c GeneralSettings, field: Option<&MeanField>) -> WordDistanceResult<'b>{
@@ -42,7 +51,8 @@ impl WordDistanceResult<'_>{
 	pub fn add_meaning_fine(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, gs: &GeneralSettings){
 		if let Some(field) = field{
 			if let Some(meaning) = meaning{
-				self.dist += field.dist(meaning) * gs.meaning.weight;
+				self.meaning += field.dist(meaning) * gs.meaning.weight;
+				self.dist += self.meaning;
 			}
 		}
 	}
@@ -68,9 +78,14 @@ impl PartialEq for WordDistanceResult<'_> {
 
 impl Eq for WordDistanceResult<'_>{}
 
+fn round3(n: f32) -> f32{
+	f32::round(n*1_000.0)/1_000.0
+}
+
 impl Debug for WordDistanceResult<'_>{
 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-		write!(f, "{}: {}", self.word.src, self.dist)
+		write!(f, "{} — (msc:{}; v:{}, c:{}; s: {}; m: {})", 
+			self.word.src, round3(self.misc), round3(self.vowel), round3(self.cons), round3(self.structure), round3(self.meaning))
 	}
 }
 
@@ -80,15 +95,19 @@ pub struct WordCollector{
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings,
 	pub w2i: HashMap<String, usize>,
-	pub i2w: Vec<String>
+	pub i2w: Vec<String>,
+	pub sorted_indexes: Vec<usize> // sorted_indexes[0] will return first word in alphabet order
 }
 
 impl WordCollector{
-	pub fn new(mut 	i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
+	pub fn new(i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
 		let mut words: Vec<Vec<Word>> = vec![];
 		let mut parts_of_speech: Vec<String> = vec![];
 
-		i2w.sort_unstable(); // sorting speeds up the speed of stress getting
+		// i2w.sort_unstable(); // sorting speeds up the speed of stress getting
+		let mut sorted_indexes: Vec<(&String, usize)> = zip(i2w.iter(), 0..i2w.len()).collect();
+		sorted_indexes.sort_unstable();
+		let sorted_indexes = sorted_indexes.iter().map(|x| x.1).collect();
 
 		for ind in 0..i2w.len(){
 			let name = &i2w[ind];
@@ -135,7 +154,8 @@ impl WordCollector{
 			words.push(declension);
 		}
 
-		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs, w2i: index_map_from_list(i2w.clone()), i2w: i2w}
+		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs,
+					 w2i: index_map_from_list(i2w.clone()), i2w: i2w, sorted_indexes:sorted_indexes}
 	}
 
 
@@ -193,15 +213,16 @@ impl WordCollector{
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
 		// 400 μs if O(log) works
 		// up to 500 ms if doesn't
-		// (tested om power-saving mode of laptop)
 
 		#[inline]
 		fn remove_stresses(s: &str) -> String{
 			s.replace("'", "").replace("`", "")
 		}
 
-		let n_s = not_stressed.to_owned(); 
-		let ind = self.i2w.partition_point(|s| s < &n_s);
+		let n_s = not_stressed.to_owned();
+		let range: Vec<usize> = (0..self.i2w.len()).collect();
+		let ind = self.sorted_indexes[range.partition_point(|i| self.i2w[self.sorted_indexes[*i]] < n_s)];
+
 		// println!("{}", not_stressed);
 
 		let min_i = {if ind > 5 {ind - 5} else {0}};
@@ -261,9 +282,11 @@ fn word_collect(){
 	let wc = WordCollector::load_default();
 	let mf = MeanStrFields::load_default();
 	println!("Loaded words in {:#?}", current.elapsed());
+
 	let current = Instant::now();
 
 	let field = MeanField::from_strings(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
+
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&field)));
 	println!("Found words in {:#?} seconds", current.elapsed());

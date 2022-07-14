@@ -60,7 +60,7 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
         None => vec![]
     };
 
-    let to_find = args.to_find;
+    let to_find = args.to_find.to_lowercase();
     let to_find = auto_stress(&wc, &to_find).ok_or("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)".to_string())?;
     let words = wc.find_best(&Word::new(&to_find, false, None), rps.iter().map(|s| &**s).collect(), args.top_n.into(), field_ref);
 
