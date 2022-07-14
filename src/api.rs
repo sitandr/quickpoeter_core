@@ -39,7 +39,7 @@ pub struct Args {
 
     /// Number of selected best matches
     #[clap(short, long, value_parser, default_value_t=100)]
-    pub top_n: u8,
+    pub top_n: u32,
 }
 
 
