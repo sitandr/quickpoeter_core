@@ -86,6 +86,9 @@ impl Consonant{
 
 impl Phone for Vowel{
 	fn distance(&self, other: &Self) -> f32{
+		if self.letter == '+' || self.letter == '!' || other.letter == '+' || other.letter == '!'{
+			return 1.0;
+		}
 		let (x1, y1) = ASSONANSES[&self.letter];
 		let (x2, y2) = ASSONANSES[&other.letter];
 

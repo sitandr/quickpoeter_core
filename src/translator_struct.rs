@@ -31,7 +31,10 @@ pub struct Word{
 	// unlike python version, the letter order stays the same
 	pub sylls: Vec<Syll>, // syllables
 	pub src: String,
-	pub meaning: Option<[f32; VECTOR_DIM]>
+	pub meaning: Option<[f32; VECTOR_DIM]>,
+	/// true means it has only abstract vowels, so we can skip
+	/// all cons metrics when measuring distance
+	pub only_stress_structure: bool
 }
 
 impl Word{
@@ -58,13 +61,24 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls: sylls, src: w.to_string(), meaning: meaning}
+		Self{sylls: sylls, src: w.to_string(), meaning: meaning, only_stress_structure: false}
+	}
+
+	/// constructs new only_stress_structure word
+	pub fn new_abstract(w: &str) -> Self{
+		let sylls = w.chars().map(|l| match l{
+			'+' => Vowel{letter: '+', accent: Accent::NoAccent},
+			'!' => Vowel{letter: '!', accent: Accent::Primary},
+			_ => unreachable!("Bad identifier, {}", l)
+		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: vec![]}).collect();
+		Self{sylls: sylls, src: w.to_string(), meaning: None, only_stress_structure: true}
 	}
 
 	fn has_cons_end(&self) -> bool{
 		self.sylls.last().unwrap().trailing_consonants.len() > 0
 	}
 
+	/// return (min, max) by len
 	pub fn get_sorted_by_sylls<'a>(one: &'a Self, other: &'a Self) -> (&'a Self, &'a Self){
 		if one.sylls.len() > other.sylls.len(){
 			(other, one)
@@ -134,14 +148,35 @@ impl Word{
 	}
 
 	pub fn measure_distance(&self, other: &Self, gs: &GeneralSettings) -> (f32, f32, f32, f32){
-
 		let (first, second) = Self::get_sorted_by_sylls(self, other);
+		let misc;
+		let vowel;
+		let cons;
+		let structure;
 
-		let misc = first.measure_misc(second, &gs.misc);
-		let vowel = first.measure_vowel_dist(second, &gs.stresses);
-		let cons = first.measure_cons_dist(second, &gs.alliteration);
-		let structure = first.measure_struct_dist(second, &gs.consonant_structure);
+		if first.only_stress_structure || second.only_stress_structure{
+			vowel = first.measure_vowel_dist(second, &gs.stresses);
+			let mut diff = second.sylls.len() - first.sylls.len();
+			if second.sylls.first().unwrap().leading_vowel.is_none(){
+				diff = diff.wrapping_sub(1);
+			}
+			
+			if diff != 0{
+				misc = 100_000.0;
+			}
+			else{
+				misc = 0.0;
+			}
+			cons = 0.0;
+			structure = 0.0;
+		}
+		else{
 
+			misc = first.measure_misc(second, &gs.misc);
+			vowel = first.measure_vowel_dist(second, &gs.stresses);
+			cons = first.measure_cons_dist(second, &gs.alliteration);
+			structure = first.measure_struct_dist(second, &gs.consonant_structure);
+		}
 		(misc, vowel, cons, structure)
 	}
 	fn into_iter(&self) -> WordConsIterator{
@@ -149,7 +184,7 @@ impl Word{
 	}
 
 	/// Returns position of primary stress and vec of positions of secondary
-	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (strating from 0).
+	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (starting from 0).
 	#[allow(dead_code)] 
 	pub fn get_stresses(&self) -> (usize, Vec<usize>){
 		let mut primary = usize::MAX;
