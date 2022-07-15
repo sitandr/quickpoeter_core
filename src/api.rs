@@ -3,6 +3,8 @@ use crate::meaner::MeanField;
 use crate::reader::MeanStrFields;
 use crate::finder::{WordCollector, WordDistanceResult};
 use clap::Parser;
+use crate::translator_ru::Vowel;
+use crate::translator_ru::J_VOWELS;
 
 /// Compex tool for finding ryphms;
 #[derive(Parser, Debug)]
@@ -62,6 +64,21 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
 
     let to_find = args.to_find.to_lowercase();
     let to_find = auto_stress(&wc, &to_find).ok_or("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)".to_string())?;
+    let chrs: Vec<char> = to_find.chars().collect();
+    for i in 0..chrs.len(){
+        let c = chrs[i];
+        match c{
+            'а' ..= 'я' => {},
+            'ё' => {},
+            '`'|'\'' => {
+                let previous_c = chrs.get(i - 1).ok_or("Stress symbol at start of the word".to_string())?;
+                if !(Vowel::ALL.contains(previous_c)||J_VOWELS.contains(previous_c)){
+                    return Err("Stress not after the vowel".to_owned());
+                }
+            },
+            _ => return Err(format!("Unknown charachter {}", c)),
+        }
+    } 
     let words = wc.find_best(&Word::new(&to_find, false, None), rps.iter().map(|s| &**s).collect(), args.top_n.into(), field_ref);
 
     Ok(words)

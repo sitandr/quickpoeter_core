@@ -7,7 +7,7 @@ use regex::Regex;*/
 
 const J_MARKERS: [char; 10] = ['а', 'о', 'э', 'и', 'ы', 'у', 'ь', 'ъ', '\'', '`']; // ' and ` mean there is a vowel before => marker
 
-const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
+pub const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
 const J_MAP: phf::Map<char, char> = phf_map! {
 	'ё' => 'о',
 	'е' => 'э',
@@ -58,7 +58,7 @@ pub struct Vowel{
 	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
 }
 impl Vowel{
-	const ALL: [char; 6] = ['а', 'о', 'э', 'и', 'ы', 'у'];
+	pub const ALL: [char; 6] = ['а', 'о', 'э', 'и', 'ы', 'у'];
 
 	// needs stress_settings -> doesn't belong to Phone
 	pub fn accent_distance(&self, other: &Self, sett: &StressSettings) -> f32{
