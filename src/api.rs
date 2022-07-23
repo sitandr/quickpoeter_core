@@ -44,7 +44,7 @@ pub struct Args {
     pub top_n: u32,
 }
 
-fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, String>{
+pub fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, String>{
     if to_find.chars().all(|c| match c {'+'|'!' => true, _ => false}){
         Ok(Word::new_abstract(&to_find))
     }
@@ -70,11 +70,11 @@ fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, String>{
     }
 }
 
-fn split_by_plus(rps: Option<String>) -> Vec<String>{
+pub fn split_by_plus(rps: Option<String>) -> Vec<String>{
     rps.map_or(vec![], |s| s.split("+").map(|x| x.to_owned()).collect())
 }
 
-fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<String>) -> Result<Option<MeanField>, String>{
+pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<String>) -> Result<Option<MeanField>, String>{
     
     key.map(|k| { // -> Result<MF, String>
         let strings_or_err = mf.str_fields.get(&k);
@@ -95,15 +95,8 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
     Ok(words)
 }
 
-fn select_words_from_text(text: Vec<String>) -> Vec<String>{
-    text.iter().map(|s|
-        String::from_iter(s.to_lowercase().chars().map(|c|
-            match c{
-                'а' ..= 'я' => c,
-                'ё'|' ' => c,
-                _ => ' '
-            }))
-        .split(' ').map(|s| s.to_string()).filter(|s| s.len() > 0).collect::<Vec<_>>()).flatten().collect()
+pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: &Option<MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field.as_ref())
 }
 
 pub fn auto_stress(wc: &WordCollector, to_find: &str) -> Option<String>{

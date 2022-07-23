@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::translator_struct::Word;
 use crate::reader::{VECTOR_DIM};
 use crate::finder::WordCollector;
@@ -45,13 +46,21 @@ impl MeanField{
 		MeanField{average: average, sigmas: Some(sigma)}
 	}
 
-	/// this method is needed because words can miss meaning; this would not be possible if using words from WordCollector
+	/// just skips the words word collector doesn't know
+	pub fn from_strings_filter<S>(wc: &WordCollector, strs: Vec<S>) -> Self
+	where S: Deref<Target = str>
+	{
+		Self::new(strs.iter().filter_map(|s| wc.get_word(s).and_then(|w| w.meaning)).collect())
+	}
+
+	/// this method is needed because words can miss meaning; however, this is not be possible if using words from WordCollector
 	pub fn from_words<'a>(words: &'a Vec<Word>) -> Result<Self, Vec<&'a str>>{
 		map_with_failures(words.iter(), |w| w.meaning)
 			.and_then(|vecs| Ok(Self::new(vecs)))
 			.or_else(|err_words| Err(err_words.iter().map(|w| &*w.src).collect()))
 	}
 
+	/// strings of standart forms only
 	pub fn from_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
 		Self::from_str(wc, &strs.iter().map(|s| &**s).collect())
 	}
@@ -60,7 +69,7 @@ impl MeanField{
 		map_with_failures(strs.iter().map(|s| *s), |s| wc.get_meaning(s)).and_then(|vecs| Ok(Self::new(vecs)))
 	}
 
-	fn from_single(vector: [f32;VECTOR_DIM]) -> MeanField{
+	fn from_single(vector: [f32;VECTOR_DIM]) -> Self{
 		MeanField{average: vector, sigmas: None}
 	}
 
