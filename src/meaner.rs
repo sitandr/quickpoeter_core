@@ -1,3 +1,4 @@
+use crate::translator_struct::Word;
 use crate::reader::{VECTOR_DIM};
 use crate::finder::WordCollector;
 use ordered_float::NotNan;
@@ -44,28 +45,19 @@ impl MeanField{
 		MeanField{average: average, sigmas: Some(sigma)}
 	}
 
+	/// this method is needed because words can miss meaning; this would not be possible if using words from WordCollector
+	pub fn from_words<'a>(words: &'a Vec<Word>) -> Result<Self, Vec<&'a str>>{
+		map_with_failures(words.iter(), |w| w.meaning)
+			.and_then(|vecs| Ok(Self::new(vecs)))
+			.or_else(|err_words| Err(err_words.iter().map(|w| &*w.src).collect()))
+	}
+
 	pub fn from_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
 		Self::from_str(wc, &strs.iter().map(|s| &**s).collect())
 	}
 
 	pub fn from_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>{
-		use itertools::{Itertools, Either};
-		let (vecs, failured_strings): (Vec<_>, Vec<&str>) = strs.iter().partition_map(|s| 
-			{let r = wc.get_meaning(s);
-
-			match r {
-				Some(vec) => Either::Left(vec),
-				None => Either::Right(s),
-			}
-		});
-
-		if failured_strings.len() == 0{
-			Ok(Self::new(vecs))
-		}
-		else{
-			Err(failured_strings)
-		}
-
+		map_with_failures(strs.iter().map(|s| *s), |s| wc.get_meaning(s)).and_then(|vecs| Ok(Self::new(vecs)))
 	}
 
 	fn from_single(vector: [f32;VECTOR_DIM]) -> MeanField{
@@ -85,6 +77,26 @@ impl MeanField{
 			dist_arrays(self.average, vector)
 		}
 		
+	}
+}
+
+pub fn map_with_failures<'a, T, U, F, I>(iter: I, f: F) -> Result<Vec<U>, Vec<T>>
+	where F: Fn(&T) -> Option<U>,
+	I: Iterator<Item = T>
+	{
+	use itertools::{Itertools, Either};
+	let (success, failured): (Vec<U>, Vec<T>) = iter.partition_map(|s| 
+		match f(&s){
+			Some(vec) => Either::Left(vec),
+			None => Either::Right(s),
+		}
+	);
+
+	if failured.len() == 0{
+		Ok(success)
+	}
+	else{
+		Err(failured)
 	}
 }
 

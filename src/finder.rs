@@ -202,12 +202,11 @@ impl WordCollector{
 		 ignore_parts_of_speech: ignore}
 	}
 
+	/// use only standart forms passing there — for **O(1)**
+	/// use `word_collector.get_word(w).unwrap().meaning` (or `and_then` etc.) if all forms are possible instead
 
 	pub fn get_meaning(&self, s: &str) -> Option<[f32; VECTOR_DIM]>{
-		match self.w2i.get(s){
-			Some(ind) => Some(self.meanings[*ind]),
-			None => None
-		}
+		self.w2i.get(s).map(|ind| self.meanings[*ind])
 	}
 
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
