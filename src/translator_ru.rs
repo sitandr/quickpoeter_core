@@ -136,7 +136,7 @@ impl Phone for Consonant{
 			if self.voiced == other.voiced {d += 0.5}
 			if self.palatalized == other.palatalized {d += 0.5};
 
-			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0) + d)/65.0
+			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0) + d)/66.0
 		}
 		else{
 			// й + …? — already checked they are not equal
