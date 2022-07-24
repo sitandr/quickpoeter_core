@@ -138,7 +138,7 @@ impl Word{
 
 	pub fn measure_misc(&self, other: &Self, sett: &MiscSettings) -> f32{
 		let mut dist = 0.0;
-		if self.has_cons_end() == other.has_cons_end(){
+		if self.has_cons_end() != other.has_cons_end(){
 			dist += sett.same_cons_end;
 		}
 

@@ -132,10 +132,11 @@ impl Phone for Consonant{
 		if self.letter != 'й' && other.letter != 'й'{
 			let (x1, y1) = ALLITERATION[&self.letter];
 			let (x2, y2) = ALLITERATION[&other.letter];
-			let mut k: f32 = if self.voiced == other.voiced {1.5} else {1.0};
-			if self.palatalized == other.palatalized {k *= 1.5};
+			let mut d: f32 = 0.0;
+			if self.voiced == other.voiced {d += 0.5}
+			if self.palatalized == other.palatalized {d += 0.5};
 
-			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0))/65.0 * k
+			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0) + d)/65.0
 		}
 		else{
 			// й + …? — already checked they are not equal
