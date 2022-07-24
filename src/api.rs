@@ -79,7 +79,7 @@ pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<Stri
     key.map(|k| { // -> Result<MF, String>
         let strings_or_err = mf.str_fields.get(&k);
         match strings_or_err {
-            Some(strings) => MeanField::from_strings(wc, &strings).map_err(|vs| format!("{:?}", vs)),
+            Some(strings) => MeanField::from_standart_strings(wc, &strings).map_err(|vs| format!("{:?}", vs)),
             None => Err(format!("Unknown field: {}", k).to_string()),
         }
     }).transpose()
@@ -95,8 +95,8 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
     Ok(words)
 }
 
-pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: &Option<MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
-    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field.as_ref())
+pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field)
 }
 
 pub fn auto_stress(wc: &WordCollector, to_find: &str) -> Option<String>{

@@ -284,7 +284,7 @@ fn word_collect(){
 
 	let current = Instant::now();
 
-	let field = MeanField::from_strings(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
+	let field = MeanField::from_standart_strings(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&field)));
