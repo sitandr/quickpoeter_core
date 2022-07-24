@@ -12,7 +12,8 @@ pub struct MeanField{
 }
 
 impl MeanField{
-	pub fn new(vectors: Vec<[f32;VECTOR_DIM]>) -> MeanField{
+	/// will panic if no vectors are provided
+	pub fn new(vectors: Vec<[f32;VECTOR_DIM]>) -> Self{
 		let n = vectors.len();
 
 		if n == 1{
@@ -46,11 +47,29 @@ impl MeanField{
 		MeanField{average: average, sigmas: Some(sigma)}
 	}
 
+	pub fn try_new(vectors: Vec<[f32;VECTOR_DIM]>) -> Option<Self>{
+		if vectors.is_empty(){
+			None
+		}
+		else{
+			Some(Self::new(vectors))
+		}
+	}
+
 	/// just skips the words word collector doesn't know
-	pub fn from_strings_filter<S>(wc: &WordCollector, strs: Vec<S>) -> Self
+	/// returns None if no words are left
+	pub fn from_strings_filter<S>(wc: &WordCollector, strs: &Vec<S>) -> Option<Self>
 	where S: Deref<Target = str>
 	{
-		Self::new(strs.iter().filter_map(|s| wc.get_word(s).and_then(|w| w.meaning)).collect())
+		 let vects: Vec<[f32; VECTOR_DIM]> = strs.iter().filter_map(|s| wc.get_word(s).and_then(|w| w.meaning)).collect();
+		 Self::try_new(vects)
+	}
+
+	/// None if no strings are provided
+	pub fn from_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>
+	{
+		let vects: Vec<[f32; VECTOR_DIM]> = map_with_failures(strs.iter().map(|s| &**s), |s| wc.get_word(s).and_then(|w| w.meaning))?;
+		Self::try_new(vects).ok_or(vec![])
 	}
 
 	/// this method is needed because words can miss meaning; however, this is not be possible if using words from WordCollector
@@ -61,11 +80,11 @@ impl MeanField{
 	}
 
 	/// strings of standart forms only
-	pub fn from_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
-		Self::from_str(wc, &strs.iter().map(|s| &**s).collect())
+	pub fn from_standart_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
+		Self::from_standart_str(wc, &strs.iter().map(|s| &**s).collect())
 	}
 
-	pub fn from_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>{
+	pub fn from_standart_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>{
 		map_with_failures(strs.iter().map(|s| *s), |s| wc.get_meaning(s)).and_then(|vecs| Ok(Self::new(vecs)))
 	}
 
