@@ -256,8 +256,13 @@ fn word_collect(){
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
 	println!("Found words in {:#?} seconds", current.elapsed());
 
-	/*println!("Sleeping… (you can measure the memory consumption");
-	use std::{thread, time::Duration};
-	thread::sleep(Duration::from_millis(10_000));*/
+	//use std::{thread, time::Duration};
+	//let mut wc = wc;
+
+	/*
+	println!("Sleeping (basic)");
+	thread::sleep(Duration::from_millis(10_000));
+	*/
+
 
 }

@@ -183,16 +183,17 @@ impl Word{
 
 	/// Returns position of primary stress and vec of positions of secondary
 	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (starting from 0).
+	/// It can't return absolute char just because it knows only about the sounds
 	#[allow(dead_code)] 
-	pub fn get_stresses(&self) -> (usize, Vec<usize>){
+	pub fn get_stresses(&self) -> (usize, Option<usize>){
 		let mut primary = usize::MAX;
-		let mut secondary = vec![];
+		let mut secondary = None;
 		let mut offset = 0;
 		for (ind, syll) in self.sylls.iter().enumerate(){
 			if let Some(vowel) = &syll.leading_vowel{
 				match vowel.accent{
 					Accent::Primary => primary = ind - offset,
-					Accent::Secondary => secondary.push(ind - offset),
+					Accent::Secondary => secondary = Some(ind - offset),
 					Accent::NoAccent => {}
 				}
 			}

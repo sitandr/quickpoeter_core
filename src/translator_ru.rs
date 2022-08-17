@@ -21,7 +21,7 @@ macro_rules! J_MAP {
 
 // const J_VOWELS: Vec<&char> = J_MAP.keys().collect();
 const SOFTABLE: [char; 10] = ['с', 'х', 'ф', 'к', 'т', 'п', 'р', 'л', 'н', 'м'];
-const REMOVING_VOICE: [char; 7] = ['п', 'ф', 'к', 'т', 'ш', 'с', 'ш'];
+const REMOVING_VOICE: [char; 6] = ['п', 'ф', 'к', 'т', 'ш', 'с'];
 
 //0        Т С   Ч
 //1 РЛНМ П     Ш
@@ -63,6 +63,23 @@ macro_rules! symbol_id {
 }
 
 pub(crate) use symbol_id;
+
+/* 
+// Maybe one day I will fix it to 
+macro_rules! range_match {
+	($x:expr, $($letter:ident),+) => {
+		{
+			enum Counter{
+				$($letter,)+
+			}
+			match $x{
+				$(stringify!($letter) => (Counter::$letter as u32),)+
+				_ => unreachable!()
+			}
+		}
+	};
+}
+*/
 
 #[derive(Debug)]
 pub struct Vowel{
@@ -396,9 +413,17 @@ fn map_or_match_speed(){
 	println!("Matched in {:#?} seconds", current.elapsed());
 	println!("{:?}", r2);
 
+	/*
+	let current = Instant::now();
+	let r2 = range_match!(&*r.to_string(), а, б, в, ш, г, е);
+	println!("Macro in {:#?} seconds", current.elapsed());
+	*/
+
 	let current = Instant::now();
 	let r2 = find_u8(r, Consonant::ALL.iter());
-	println!("Mapped  in {:#?} seconds", current.elapsed());
+	println!("Found in {:#?} seconds", current.elapsed());
+
+
 
 	println!("{:?}", r2);
 }
