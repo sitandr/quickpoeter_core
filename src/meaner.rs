@@ -1,6 +1,5 @@
 use std::ops::Deref;
-use crate::translator_struct::Word;
-use crate::reader::{VECTOR_DIM};
+use crate::reader::VECTOR_DIM;
 use crate::finder::WordCollector;
 use ordered_float::NotNan;
 
@@ -56,36 +55,23 @@ impl MeanField{
 		}
 	}
 
+	
 	/// just skips the words word collector doesn't know
 	/// returns None if no words are left
+	#[allow(dead_code)]
 	pub fn from_strings_filter<S>(wc: &WordCollector, strs: &Vec<S>) -> Option<Self>
 	where S: Deref<Target = str>
 	{
-		 let vects: Vec<[f32; VECTOR_DIM]> = strs.iter().filter_map(|s| wc.get_word(s).and_then(|w| w.meaning)).collect();
+		 let vects: Vec<[f32; VECTOR_DIM]> = strs.iter().filter_map(|s| wc.get_meaning(s)).collect();
 		 Self::try_new(vects)
 	}
 
-	/// None if no strings are provided
-	pub fn from_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>
+	/// empty vec err if no strings are provided
+	pub fn from_str<'a, S>(wc: &WordCollector, strs: &'a Vec<S>) -> Result<Self, Vec<&'a S>>
+	where S: Deref<Target = str>
 	{
-		let vects: Vec<[f32; VECTOR_DIM]> = map_with_failures(strs.iter().map(|s| &**s), |s| wc.get_word(s).and_then(|w| w.meaning))?;
+		let vects: Vec<[f32; VECTOR_DIM]> = map_with_failures(strs.iter(), |s| wc.get_meaning(s))?;
 		Self::try_new(vects).ok_or(vec![])
-	}
-
-	/// this method is needed because words can miss meaning; however, this is not be possible if using words from WordCollector
-	pub fn from_words<'a>(words: &'a Vec<Word>) -> Result<Self, Vec<&'a str>>{
-		map_with_failures(words.iter(), |w| w.meaning)
-			.and_then(|vecs| Ok(Self::new(vecs)))
-			.or_else(|err_words| Err(err_words.iter().map(|w| &*w.src).collect()))
-	}
-
-	/// strings of standart forms only
-	pub fn from_standart_strings<'a>(wc: &WordCollector, strs: &'a Vec<String>) -> Result<Self, Vec<&'a str>>{
-		Self::from_standart_str(wc, &strs.iter().map(|s| &**s).collect())
-	}
-
-	pub fn from_standart_str<'a>(wc: &WordCollector, strs: &Vec<&'a str>) -> Result<Self, Vec<&'a str>>{
-		map_with_failures(strs.iter().map(|s| *s), |s| wc.get_meaning(s)).and_then(|vecs| Ok(Self::new(vecs)))
 	}
 
 	fn from_single(vector: [f32;VECTOR_DIM]) -> Self{

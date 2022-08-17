@@ -7,14 +7,13 @@
 /// 5. Count meaner only one time -> ~ + 10%
 
 
-use std::iter::zip;
 use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::cmp::Ordering;
 use crate::reader::GeneralSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
-use crate::reader::{VECTOR_DIM, index_map_from_list};
+use crate::reader::VECTOR_DIM;
 use ordered_float::NotNan;
 use crate::meaner::MeanField;
 use std::collections::BinaryHeap;
@@ -31,9 +30,9 @@ pub struct WordDistanceResult<'a>{
 	pub word: &'a Word,
 }
 
-impl WordDistanceResult<'_>{
+impl<'collector> WordDistanceResult<'collector>{
 	/// This function doesn't count meaning (but measures everything else). Use `from forms` to measure it or add "meaning fine" manually
-	pub fn new<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Word, gs: &'c GeneralSettings) -> WordDistanceResult<'b>{
+	pub fn new<'c, 'a>(to_find: &'a Word, measured: &'collector Word, gs: &'c GeneralSettings) -> Self{
 
 		let (misc, vowel, cons, structure) = to_find.measure_distance(measured, gs);
 
@@ -41,9 +40,9 @@ impl WordDistanceResult<'_>{
 		WordDistanceResult{dist: dist, word: &measured, misc:misc, vowel: vowel, cons: cons, structure: structure, meaning: 0.0}
 	}
 
-	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, measured: &'b Vec<Word>, gs: &'c GeneralSettings, field: Option<&MeanField>) -> WordDistanceResult<'b>{
-		let mut res = measured.iter().map(|w| WordDistanceResult::new(to_find, w, gs)).min().unwrap();
-		res.add_meaning_fine(res.word.meaning, field, gs);
+	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, wc: &'collector WordCollector, forms_index: usize, gs: &'c GeneralSettings, field: Option<&MeanField>) -> Self{
+		let mut res = wc.words[forms_index].iter().map(|w| WordDistanceResult::new(to_find, w, gs)).min().unwrap();
+		res.add_meaning_fine(Some(wc.meanings[forms_index]), field, gs);
 		res
 	}
 
@@ -94,20 +93,14 @@ pub struct WordCollector{
 	pub parts_of_speech: Vec<String>,
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings,
-	pub w2i: HashMap<String, usize>,
-	pub i2w: Vec<String>,
-	pub sorted_indexes: Vec<usize> // sorted_indexes[0] will return first word in alphabet order
+	pub string2index: HashMap<String, (usize, usize)>
 }
 
 impl WordCollector{
 	pub fn new(i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
 		let mut words: Vec<Vec<Word>> = vec![];
 		let mut parts_of_speech: Vec<String> = vec![];
-
-		// i2w.sort_unstable(); // sorting speeds up the speed of stress getting
-		let mut sorted_indexes: Vec<(&String, usize)> = zip(i2w.iter(), 0..i2w.len()).collect();
-		sorted_indexes.sort_unstable();
-		let sorted_indexes = sorted_indexes.iter().map(|x| x.1).collect();
+		let mut string2index = HashMap::new();
 
 		for ind in 0..i2w.len(){
 			let name = &i2w[ind];
@@ -126,14 +119,9 @@ impl WordCollector{
 				"п"|"мс"|"мс-п"|"г"|"числ-п" => true,
 				_ => false
 			};
-
-			// println!("{}, {:?}", name, bases);
-			/*if bases[0].len() > 0{
-				declension.push(Word::new(bases[0], is_adj));
-			}*/
 			
 
-			for mut e in endings{
+			for (form_index, mut e) in endings.into_iter().enumerate(){
 				let mut e2 = e.to_string();
 				// println!("{}, {}", name, e);
 				let mut base = match e.chars().next(){
@@ -147,15 +135,20 @@ impl WordCollector{
 
 				base.push_str(e);
 				// println!("{}", base);
-				let w = Word::new(&base, is_adj, Some(meanings[ind]));
+				let w = Word::new(&base, is_adj);
+
+				#[inline]
+				fn remove_stresses(s: &String) -> String{
+					s.replace("'", "").replace("`", "")
+				}
+				string2index.insert(remove_stresses(&w.src), (ind, form_index));
 				// w.get_stresses(); // checks if all have actual stress
 				declension.push(w);
 			}
 			words.push(declension);
 		}
 
-		WordCollector{words: words, parts_of_speech: parts_of_speech, meanings: meanings, gs: gs,
-					 w2i: index_map_from_list(i2w.clone()), i2w: i2w, sorted_indexes:sorted_indexes}
+		WordCollector{words, parts_of_speech, meanings, gs, string2index}
 	}
 
 
@@ -168,9 +161,9 @@ impl WordCollector{
 
 		let mut collected = false;
 
-		for w_forms in self.into_iter(ignore){
+		for (w_index, _) in self.into_iter(ignore){
 			
-			let res = WordDistanceResult::from_forms(to_find, w_forms, &self.gs, field);
+			let res = WordDistanceResult::from_forms(to_find, &self, w_index, &self.gs, field);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -202,48 +195,11 @@ impl WordCollector{
 		 ignore_parts_of_speech: ignore}
 	}
 
-	/// use only standart forms passing there — for **O(1)**
-	/// use `word_collector.get_word(w).unwrap().meaning` (or `and_then` etc.) if all forms are possible instead
-
-	pub fn get_meaning(&self, s: &str) -> Option<[f32; VECTOR_DIM]>{
-		self.w2i.get(s).map(|ind| self.meanings[*ind])
+	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
+		self.string2index.get(not_stressed).map(|(ind, _)| self.meanings[*ind])
 	}
-
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
-		// 400 μs if O(log) works
-		// up to 500 ms if doesn't
-
-		#[inline]
-		fn remove_stresses(s: &str) -> String{
-			s.replace("'", "").replace("`", "")
-		}
-
-		let n_s = not_stressed.to_owned();
-		let range: Vec<usize> = (0..self.i2w.len()).collect();
-		let ind = self.sorted_indexes[range.partition_point(|i| self.i2w[self.sorted_indexes[*i]] < n_s)];
-
-		// println!("{}", not_stressed);
-
-		let min_i = {if ind > 5 {ind - 5} else {0}};
-		let max_i = {if ind < self.words.len() - 5 {ind + 5} else {self.words.len()}};
-
-		for i in min_i..max_i{
-			for word_form in &self.words[i]{
-				if remove_stresses(&word_form.src) == not_stressed{
-					return Some(&word_form);
-				}
-			}
-		}
-
-		// brute force… Very slow (~700 000 operations).
-		for w_fs in &self.words{
-			for word_form in w_fs{
-				if remove_stresses(&word_form.src) == not_stressed{
-					return Some(&word_form);
-				}
-			}
-		}
-		None
+		self.string2index.get(not_stressed).map(|(ind, f_ind)| &self.words[*ind][*f_ind])
 	}
 }
 
@@ -254,7 +210,7 @@ pub struct WordCollectIterator<'a, 'b>{
 }
 
 impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
-	type Item = &'a Vec<Word>;
+	type Item = (usize, &'a Vec<Word>);
 	fn next(&mut self)-> Option<Self::Item> {
 		if self.count >= self.wc.words.len(){
 			return None;
@@ -267,7 +223,7 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 		}
 		else{
 			self.count += 1;
-			Some(w_forms)
+			Some((self.count - 1, w_forms))
 		}
 	}
 }
@@ -283,17 +239,25 @@ fn word_collect(){
 	println!("Loaded words in {:#?}", current.elapsed());
 
 	let current = Instant::now();
+	
 
-	let field = MeanField::from_standart_strings(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
+	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, Some(&field)));
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field)));
 	println!("Found words in {:#?} seconds", current.elapsed());
-	/*println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, Some(wc.meanings[1525])), vec![], 50, None));
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false, None), vec![], 50, None));*/
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
 
 	let current = Instant::now();
 	println!("{:?}", wc.get_word("ударение").unwrap().get_stresses());
-	println!("Found in {:#?}", current.elapsed());
+	println!("Found stress in {:#?}", current.elapsed());
+
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
+	println!("Found words in {:#?} seconds", current.elapsed());
+
+	/*println!("Sleeping… (you can measure the memory consumption");
+	use std::{thread, time::Duration};
+	thread::sleep(Duration::from_millis(10_000));*/
 
 }

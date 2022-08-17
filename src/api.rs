@@ -66,7 +66,7 @@ pub fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, Stri
                 _ => return Err(format!("Unknown charachter {}", c)),
             }
         }
-        Ok(Word::new(&to_find, false, None))
+        Ok(Word::new(&to_find, false))
     }
 }
 
@@ -74,12 +74,13 @@ pub fn split_by_plus(rps: Option<String>) -> Vec<String>{
     rps.map_or(vec![], |s| s.split("+").map(|x| x.to_owned()).collect())
 }
 
+
 pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<String>) -> Result<Option<MeanField>, String>{
     
     key.map(|k| { // -> Result<MF, String>
         let strings_or_err = mf.str_fields.get(&k);
         match strings_or_err {
-            Some(strings) => MeanField::from_standart_strings(wc, &strings).map_err(|vs| format!("{:?}", vs)),
+            Some(strings) => MeanField::from_str(wc, &strings).map_err(|vs| format!("{:?}", vs)),
             None => Err(format!("Unknown field: {}", k).to_string()),
         }
     }).transpose()
@@ -95,6 +96,7 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
     Ok(words)
 }
 
+#[allow(dead_code)]
 pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
     wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field)
 }

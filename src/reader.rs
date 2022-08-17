@@ -7,7 +7,6 @@ use std::io::BufReader;
 use serde::{Deserialize};
 use serde_pickle::de::DeOptions;
 use half::f16;
-use std::hash::Hash;
 use crate::finder::WordCollector;
 
 pub const VECTOR_DIM: usize = 150;
@@ -137,16 +136,6 @@ where T: DeserializeOwned
     serde_yaml::from_reader(reader).expect(&("Error reading: ".to_owned() + path))
 }
 
-
-// this method can generate w2i from i2w
- pub fn index_map_from_list<T: Eq + Hash>(list: Vec<T>) -> HashMap<T, usize> {
-    let mut hash = HashMap::new();
-    for (ind, value) in list.into_iter().enumerate(){
-        hash.insert(value, ind as usize);
-    }
-    hash
-} 
-
 #[ignore]
 #[cfg(test)]
 #[test]
@@ -183,10 +172,10 @@ fn test_try_settings(){
     use crate::translator_struct::Word;
     println!("{:?}", MeanStrFields::load_default().str_fields["Art"]);
     let gs = GeneralSettings::load_default();
-    let w1 = Word::new("сло'во", false, None);
-    let w2 = Word::new("сла'ва", false, None);
+    let w1 = Word::new("сло'во", false);
+    let w2 = Word::new("сла'ва", false);
     println!("слово-слава {:?}", w1.measure_distance(&w2, &gs));
-    let w1 = Word::new("преда'тельство", false, None);
-    let w2 = Word::new("рыда'тьустал", false, None);
+    let w1 = Word::new("преда'тельство", false);
+    let w2 = Word::new("рыда'тьустал", false);
     println!("преда'тельство-рыдатьустал {:?}", w1.measure_distance(&w2, &gs));
 }

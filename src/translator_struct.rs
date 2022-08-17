@@ -3,7 +3,6 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
-use crate::reader::VECTOR_DIM;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Accent{
@@ -31,14 +30,13 @@ pub struct Word{
 	// unlike python version, the letter order stays the same
 	pub sylls: Vec<Syll>, // syllables
 	pub src: String,
-	pub meaning: Option<[f32; VECTOR_DIM]>,
 	/// true means it has only abstract vowels, so we can skip
 	/// all cons metrics when measuring distance
 	pub only_stress_structure: bool
 }
 
 impl Word{
-	pub fn new(w: &str, is_adj: bool, meaning: Option<[f32; VECTOR_DIM]>) -> Self {
+	pub fn new(w: &str, is_adj: bool) -> Self {
 		let unproc = word_to_unprocessed_vecs(w, is_adj);
 		let mut sylls = vec![];
 
@@ -61,8 +59,7 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls, src: w.to_string(),
-			 meaning, only_stress_structure: false}
+		Self{sylls, src: w.to_string(), only_stress_structure: false}
 	}
 
 	/// constructs new only_stress_structure word
@@ -72,7 +69,7 @@ impl Word{
 			'!' => Vowel{letter: symbol_id!(!), accent: Accent::Primary},
 			_ => unreachable!("Bad identifier, {}", l)
 		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: vec![]}).collect();
-		Self{sylls: sylls, src: w.to_string(), meaning: None, only_stress_structure: true}
+		Self{sylls: sylls, src: w.to_string(), only_stress_structure: true}
 	}
 
 	fn has_cons_end(&self) -> bool{
@@ -284,7 +281,7 @@ impl<'b> WordConsIterator<'b>{
 
 #[test]
 fn check_stress(){
-	assert_eq!(Word::new("ещё", false, None).get_stresses().0, 1);
-	assert_eq!(Word::new("лома'ть", false, None).get_stresses().0, 1);
-	assert_eq!(Word::new("ско'лько", false, None).get_stresses().0, 0);
+	assert_eq!(Word::new("ещё", false).get_stresses().0, 1);
+	assert_eq!(Word::new("лома'ть", false).get_stresses().0, 1);
+	assert_eq!(Word::new("ско'лько", false).get_stresses().0, 0);
 }
