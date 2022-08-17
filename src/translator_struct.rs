@@ -1,7 +1,7 @@
 
 use std::fmt::Formatter;
 use std::fmt::Display;
-use crate::translator_ru::{Vowel, Consonant, transcript};
+use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 use crate::reader::VECTOR_DIM;
 
@@ -61,14 +61,15 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls: sylls, src: w.to_string(), meaning: meaning, only_stress_structure: false}
+		Self{sylls, src: w.to_string(),
+			 meaning, only_stress_structure: false}
 	}
 
 	/// constructs new only_stress_structure word
 	pub fn new_abstract(w: &str) -> Self{
 		let sylls = w.chars().map(|l| match l{
-			'+' => Vowel{letter: '+', accent: Accent::NoAccent},
-			'!' => Vowel{letter: '!', accent: Accent::Primary},
+			'+' => Vowel{letter: symbol_id!(+), accent: Accent::NoAccent},
+			'!' => Vowel{letter: symbol_id!(!), accent: Accent::Primary},
 			_ => unreachable!("Bad identifier, {}", l)
 		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: vec![]}).collect();
 		Self{sylls: sylls, src: w.to_string(), meaning: None, only_stress_structure: true}

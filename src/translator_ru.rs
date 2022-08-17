@@ -1,19 +1,24 @@
 use crate::translator_struct::*;
-use phf::phf_map;
 use crate::reader::StressSettings;
 /*use lazy_static::lazy_static;
 use regex::Regex;*/
 
-
 const J_MARKERS: [char; 10] = ['а', 'о', 'э', 'и', 'ы', 'у', 'ь', 'ъ', '\'', '`']; // ' and ` mean there is a vowel before => marker
 
 pub const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
-const J_MAP: phf::Map<char, char> = phf_map! {
-	'ё' => 'о',
-	'е' => 'э',
-	'ю' => 'у',
-	'я' => 'а'
-};
+
+macro_rules! J_MAP {
+	($x:expr) => {
+		match $x {
+			'ё' => 'о',
+			'е' => 'э',
+			'ю' => 'у',
+			'я' => 'а',
+			_ => unreachable!()
+		}
+	};
+}
+
 // const J_VOWELS: Vec<&char> = J_MAP.keys().collect();
 const SOFTABLE: [char; 10] = ['с', 'х', 'ф', 'к', 'т', 'п', 'р', 'л', 'н', 'м'];
 const REMOVING_VOICE: [char; 7] = ['п', 'ф', 'к', 'т', 'ш', 'с', 'ш'];
@@ -21,20 +26,20 @@ const REMOVING_VOICE: [char; 7] = ['п', 'ф', 'к', 'т', 'ш', 'с', 'ш'];
 //0        Т С   Ч
 //1 РЛНМ П     Ш
 //2        К Х  Ф
-const ALLITERATION: phf::Map<char, (f32, f32)> = phf_map! {
-	'р' => (0.0, 1.0),
-	'л' => (0.5, 1.0),
-	'н' => (1.0, 1.0),
-	'м' => (1.5, 1.0),
-	'п' => (3.0, 1.0),
-	'т' => (4.0, 0.0),
-	'к' => (4.0, 2.0),
-	'с' => (5.0, 0.0),
-	'х' => (5.0, 2.0),
-	'ш' => (6.0, 1.0),
-	'ч' => (8.0, 0.0),
-	'ф' => (8.0, 2.0)
-};
+const ALLITERATION: [(f32, f32); 12] = [
+	(0.0, 1.0), // р
+	(0.5, 1.0), // л
+	(1.0, 1.0), // н
+	(1.5, 1.0), // м
+	(3.0, 1.0), // п
+	(4.0, 0.0), // т
+	(4.0, 2.0), // к
+	(5.0, 0.0), // с
+	(5.0, 2.0), // х
+	(6.0, 1.0), // ш
+	(8.0, 0.0), // ч
+	(8.0, 2.0)  // ф
+];
 /*
  о 
   а э 
@@ -42,23 +47,30 @@ const ALLITERATION: phf::Map<char, (f32, f32)> = phf_map! {
 у     ы
         и
 */
-const ASSONANSES: phf::Map<char, (i8, i8)> = phf_map! {
-	'а' => (5, 5),
-	'о' => (4, 6),
-	'э' => (6, 5),
-	'и' => (8, 2),
-	'ы' => (7, 3),
-	'у' => (3, 3)
-};
+const ASSONANSES: [(i32, i32); 6] = [
+	(5, 5), // а
+	(4, 6), // о
+	(6, 5), // э
+	(8, 2), // и
+	(7, 3), // ы
+	(3, 3) // у
+];
 
+macro_rules! symbol_id {
+	(!) => (6);
+	(+) => (7);
+	(й) => (12);
+}
+
+pub(crate) use symbol_id;
 
 #[derive(Debug)]
 pub struct Vowel{
-	pub letter: char,
+	pub letter: u8,
 	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
 }
 impl Vowel{
-	pub const ALL: [char; 6] = ['а', 'о', 'э', 'и', 'ы', 'у'];
+	pub const ALL: [char; 8] = ['а', 'о', 'э', 'и', 'ы', 'у', '!', '+'];
 
 	// needs stress_settings -> doesn't belong to Phone
 	pub fn accent_distance(&self, other: &Self, sett: &StressSettings) -> f32{
@@ -75,22 +87,29 @@ impl Vowel{
 
 #[derive(Debug)]
 pub struct Consonant{
-	pub letter: char,
+	pub letter: u8,
 	pub voiced: bool, // звонкая
 	pub palatalized: bool // мягкая
 }
 impl Consonant{
+	/// order is extremely important
 	const ALL: [char; 13] = ['р', 'л', 'н', 'м', 'п', 'т', 'к', 'с', 'х', 'ш', 'ч', 'ф', 'й'];
 }
 
+fn find_u8<'a, T, I>(elem: T, mut array: I) -> u8
+where I: Iterator<Item=&'a T>,
+T: 'a + Eq
+{
+	array.position(|r| *r == elem).unwrap() as u8
+}
 
 impl Phone for Vowel{
 	fn distance(&self, other: &Self) -> f32{
-		if self.letter == '+' || self.letter == '!' || other.letter == '+' || other.letter == '!'{
+		if self.letter == symbol_id!(+) || self.letter == symbol_id!(!) || other.letter == symbol_id!(+) || other.letter == symbol_id!(!){
 			return 1.0;
 		}
-		let (x1, y1) = ASSONANSES[&self.letter];
-		let (x2, y2) = ASSONANSES[&other.letter];
+		let (x1, y1) = ASSONANSES[self.letter as usize];
+		let (x2, y2) = ASSONANSES[other.letter as usize];
 
 		let res: f32 = (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f32)/26.0;
 		res
@@ -117,7 +136,7 @@ impl Phone for Vowel{
 			letter = 'а';
 		}
 
-		Self{letter: letter, accent: accent}
+		Self{letter: find_u8(letter, Self::ALL.iter()), accent: accent}
 	}
 	fn contains_char(c: &char) -> bool{
 		Self::ALL.contains(c)
@@ -129,9 +148,9 @@ impl Phone for Consonant{
 		if self.letter == other.letter{
 			return 0.0;
 		}
-		if self.letter != 'й' && other.letter != 'й'{
-			let (x1, y1) = ALLITERATION[&self.letter];
-			let (x2, y2) = ALLITERATION[&other.letter];
+		if self.letter != symbol_id!(й) && other.letter != symbol_id!(й){
+			let (x1, y1) = ALLITERATION[self.letter as usize];
+			let (x2, y2) = ALLITERATION[other.letter as usize];
 			let mut d: f32 = 0.0;
 			if self.voiced == other.voiced {d += 0.5}
 			if self.palatalized == other.palatalized {d += 0.5};
@@ -156,7 +175,7 @@ impl Phone for Consonant{
 				other => unreachable!("Bad identifier {}", other)
 			}
 		}
-		let v: Self = Self{letter: v[0], voiced: voiced, palatalized: palatalized};
+		let v: Self = Self{letter: find_u8(v[0], Self::ALL.iter()), voiced: voiced, palatalized: palatalized};
 		v
 	}
 	fn contains_char(c: &char) -> bool{
@@ -184,7 +203,7 @@ fn j_replace(w: &mut Vec<char>){
 		if w[0] == 'ё'{
 			w.insert(1, '\'');
 		}
-		w[0] = J_MAP[&w[0]];
+		w[0] = J_MAP!(&w[0]);
 		w.insert(0, 'й')
 	}
 
@@ -194,7 +213,7 @@ fn j_replace(w: &mut Vec<char>){
 		let val = w[ind];
 
 		if J_VOWELS.contains(&val){
-			w[ind] = J_MAP[&val]; // е —> э
+			w[ind] = J_MAP!(&val); // е —> э
 			if val == 'ё'{
 				w.insert(ind + 1, '\'');
 				offset += 1;
@@ -333,7 +352,6 @@ fn j_replace_check(){
 }
 
 
-
 #[cfg(test)]
 #[test]
 fn testing(){
@@ -348,4 +366,39 @@ fn testing(){
 	transcript("кроманьонец", false);
 	transcript("Енёня`яя", false);
     println!("Transcripted	 in {:#?} seconds", current.elapsed());
+
+	use std::mem;
+	dbg!(mem::size_of::<Vowel>());
+	dbg!(mem::size_of::<Consonant>());
+}
+
+#[cfg(test)]
+#[test]
+fn map_or_match_speed(){
+	use std::time::{Instant};
+	let current = Instant::now(); 
+	let r = 'ш';
+	let r2 = match r{
+		'р' => 0,
+		'л' => 1,
+		'н' => 2,
+		'м' => 3,
+		'п' => 4,
+		'т' => 5,
+		'к' => 6,
+		'с' => 7,
+		'х' => 8,
+		'ш' => 9,
+		'ч' => 10,
+		'ф' => 11,
+		_ => 100
+	};
+	println!("Matched in {:#?} seconds", current.elapsed());
+	println!("{:?}", r2);
+
+	let current = Instant::now();
+	let r2 = find_u8(r, Consonant::ALL.iter());
+	println!("Mapped  in {:#?} seconds", current.elapsed());
+
+	println!("{:?}", r2);
 }
