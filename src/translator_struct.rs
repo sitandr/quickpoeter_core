@@ -1,4 +1,5 @@
 
+use smallvec::{SmallVec, smallvec};
 use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
@@ -22,7 +23,7 @@ pub struct Syll{
 	// to get simplier logic, sylls are defined as starting from vowel
 	// -_a_nd-
 	leading_vowel: Option<Vowel>, // None at first if starting from cons
-	trailing_consonants: Vec<Consonant>
+	trailing_consonants: SmallVec<[Consonant;5]>
 }
 
 #[derive(Debug)]
@@ -41,7 +42,7 @@ impl Word{
 		let mut sylls = vec![];
 
 		let mut l_vowel  = None;
-		let mut t_cons = vec![];
+		let mut t_cons = smallvec![];
 
 		for mut phone_vec in unproc{
 			let type_ = phone_vec.pop().unwrap();
@@ -50,7 +51,7 @@ impl Word{
 					sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 				}
 				l_vowel = Some(Vowel::from_vec(&phone_vec));
-				t_cons = vec![];
+				t_cons = smallvec![];
 			}
 			else{
 				t_cons.push(Consonant::from_vec(&phone_vec));
@@ -68,7 +69,7 @@ impl Word{
 			'+' => Vowel{letter: symbol_id!(+), accent: Accent::NoAccent},
 			'!' => Vowel{letter: symbol_id!(!), accent: Accent::Primary},
 			_ => unreachable!("Bad identifier, {}", l)
-		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: vec![]}).collect();
+		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: smallvec![]}).collect();
 		Self{sylls: sylls, src: w.to_string(), only_stress_structure: true}
 	}
 
