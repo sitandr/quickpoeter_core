@@ -10,6 +10,9 @@
 use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
+use std::slice;
+use std::str;
 use crate::reader::GeneralSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
@@ -84,16 +87,46 @@ fn round3(n: f32) -> f32{
 impl Debug for WordDistanceResult<'_>{
 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
 		write!(f, "{} — (msc:{}; v:{}, c:{}; s: {}; m: {})", 
-			self.word.src, round3(self.misc), round3(self.vowel), round3(self.cons), round3(self.structure), round3(self.meaning))
+			self.word, round3(self.misc), round3(self.vowel), round3(self.cons), round3(self.structure), round3(self.meaning))
 	}
 }
+
+struct UnsafeStrSaver(*const u8, usize);
+
+impl UnsafeStrSaver{
+	fn to_str(&self) -> &str{
+		unsafe{
+			let slice = slice::from_raw_parts(self.0, self.1);
+			str::from_utf8(slice).unwrap()
+		}
+	}
+
+	fn new(s: &str) -> Self{
+		UnsafeStrSaver(s.as_ptr(), s.len())
+	}
+}
+
+impl PartialEq for UnsafeStrSaver {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_str() == other.to_str()
+    }
+}
+impl Eq for UnsafeStrSaver {}
+
+impl Hash for UnsafeStrSaver {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_str().hash(state);
+    }
+}
+
+unsafe impl Sync for UnsafeStrSaver {}
 
 pub struct WordCollector{
 	pub words: Vec<Vec<Word>>,
 	pub parts_of_speech: Vec<String>,
 	pub meanings: Vec<[f32; VECTOR_DIM]>,
 	pub gs: GeneralSettings,
-	pub string2index: HashMap<String, (usize, usize)>
+	string2index: HashMap<UnsafeStrSaver, (usize, usize)>
 }
 
 impl WordCollector{
@@ -121,7 +154,7 @@ impl WordCollector{
 			};
 			
 
-			for (form_index, mut e) in endings.into_iter().enumerate(){
+			for mut e in endings.into_iter(){
 				let mut e2 = e.to_string();
 				// println!("{}, {}", name, e);
 				let mut base = match e.chars().next(){
@@ -136,19 +169,22 @@ impl WordCollector{
 				base.push_str(e);
 				// println!("{}", base);
 				let w = Word::new(&base, is_adj);
-
-				#[inline]
-				fn remove_stresses(s: &String) -> String{
-					s.replace("'", "").replace("`", "")
-				}
-				string2index.insert(remove_stresses(&w.src), (ind, form_index));
 				// w.get_stresses(); // checks if all have actual stress
 				declension.push(w);
+				
 			}
 			words.push(declension);
 		}
-
-		WordCollector{words, parts_of_speech, meanings, gs, string2index}
+		let mut wc = WordCollector{words, parts_of_speech, meanings, gs, string2index: HashMap::new()};
+		for ind in 0..wc.words.len(){
+			for (form_index, word_form) in wc.words[ind].iter().enumerate(){
+				
+					string2index.insert(UnsafeStrSaver::new(&*word_form.src), (ind, form_index));
+				
+			}
+		}
+		wc.string2index = string2index;
+		wc
 	}
 
 
@@ -196,10 +232,10 @@ impl WordCollector{
 	}
 
 	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
-		self.string2index.get(not_stressed).map(|(ind, _)| self.meanings[*ind])
+		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, _)| self.meanings[*ind])
 	}
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
-		self.string2index.get(not_stressed).map(|(ind, f_ind)| &self.words[*ind][*f_ind])
+		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, f_ind)| &self.words[*ind][*f_ind])
 	}
 }
 
@@ -226,6 +262,13 @@ impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
 			Some((self.count - 1, w_forms))
 		}
 	}
+}
+#[cfg(test)]
+#[test]
+fn memory_measure(){
+	use std::mem;
+	dbg!(mem::size_of::<UnsafeStrSaver>());
+	dbg!(mem::size_of::<(usize,usize)>());
 }
 
 #[cfg(test)]
