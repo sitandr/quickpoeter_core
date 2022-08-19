@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
+use crate::reader::VECTOR_DIM;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Accent{
@@ -24,6 +25,19 @@ pub struct Syll{
 	// -_a_nd-
 	leading_vowel: Option<Vowel>, // None at first if starting from cons
 	trailing_consonants: SmallVec<[Consonant;5]>
+}
+
+pub struct WordForms{
+	pub start_index: usize,
+	pub len: usize,
+	pub meaning: [f32; VECTOR_DIM],
+	pub speech_part: String
+}
+
+impl WordForms{
+	pub fn range(&self) -> std::ops::Range<usize>{
+		self.start_index..self.start_index + self.len
+	}
 }
 
 #[derive(Debug, Clone)]

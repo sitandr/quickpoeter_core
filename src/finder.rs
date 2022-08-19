@@ -11,9 +11,11 @@ use std::fmt::Formatter;
 use std::fmt::Debug;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::iter::zip;
 use std::slice;
 use std::str;
 use crate::reader::GeneralSettings;
+use crate::translator_struct::WordForms;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::VECTOR_DIM;
@@ -43,9 +45,9 @@ impl<'collector> WordDistanceResult<'collector>{
 		WordDistanceResult{dist: dist, word: &measured, misc:misc, vowel: vowel, cons: cons, structure: structure, meaning: 0.0}
 	}
 
-	pub fn from_forms<'c, 'a, 'b>(to_find: &'a Word, wc: &'collector WordCollector, forms_index: usize, gs: &'c GeneralSettings, field: Option<&MeanField>) -> Self{
-		let mut res = wc.words[forms_index].iter().map(|w| WordDistanceResult::new(to_find, w, gs)).min().unwrap();
-		res.add_meaning_fine(Some(wc.meanings[forms_index]), field, gs);
+	pub fn from_forms(to_find: &'_ Word, wc: &'collector WordCollector, forms: &'_ WordForms, gs: &'_ GeneralSettings, field: Option<&MeanField>) -> Self{
+		let mut res = forms.range().map(|i| WordDistanceResult::new(to_find, &wc.words[i], gs)).min().unwrap();
+		res.add_meaning_fine(Some(forms.meaning), field, gs);
 		res
 	}
 
@@ -122,41 +124,38 @@ impl Hash for UnsafeStrSaver {
 unsafe impl Sync for UnsafeStrSaver {}
 
 pub struct WordCollector{
-	pub words: Vec<Vec<Word>>,
-	pub parts_of_speech: Vec<String>,
-	pub meanings: Vec<[f32; VECTOR_DIM]>,
+	pub words: Vec<Word>,
+	pub word_form_groups: Vec<WordForms>,
 	pub gs: GeneralSettings,
-	string2index: HashMap<UnsafeStrSaver, (usize, usize)>
+	string2index: HashMap<UnsafeStrSaver,
+							(usize, usize)> // first is index of wordformgroup, second is absolute index of word in words
 }
 
 impl WordCollector{
-	pub fn new(i2w: Vec<String>, zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
-		let mut words: Vec<Vec<Word>> = vec![];
-		let mut parts_of_speech: Vec<String> = vec![];
+	pub fn new(i2w: Vec<String>, mut zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
+		let mut words: Vec<Word> = vec![];
+		let mut word_form_groups: Vec<WordForms> = vec![];
 		let mut string2index = HashMap::new();
 
-		for ind in 0..i2w.len(){
-			let name = &i2w[ind];
+		for (name, meaning) in zip(i2w, meanings){
 			
-			let mut declension: Vec<Word> = vec![];
-			let data = &zaliz[name];
+			let data = zaliz.remove(&name).unwrap();
 			let mut all_data = data.split('+');
-			let part_of_speech: &str = all_data.next().unwrap();
+			let speech_part: &str = all_data.next().unwrap();
 			let mut bases:Vec<&str> = all_data.collect();
 			let endings:Vec<&str> = bases.pop().unwrap().split(';').collect();
 
-
-			
-			parts_of_speech.push(part_of_speech.to_string());
-			let is_adj: bool = match part_of_speech{
+			let is_adj: bool = match speech_part{
 				"п"|"мс"|"мс-п"|"г"|"числ-п" => true,
 				_ => false
 			};
 			
+			let speech_part = speech_part.to_string();
 
+			let w_form_group = WordForms{start_index: words.len(), len: endings.len(), meaning, speech_part};
+			word_form_groups.push(w_form_group);
 			for mut e in endings.into_iter(){
 				let mut e2 = e.to_string();
-				// println!("{}, {}", name, e);
 				let mut base = match e.chars().next(){
 					Some(c) if c.is_digit(10) => {
 						e2.remove(0);
@@ -167,20 +166,16 @@ impl WordCollector{
 				}.to_string();
 
 				base.push_str(e);
-				// println!("{}", base);
 				let w = Word::new(&base, is_adj);
 				// w.get_stresses(); // checks if all have actual stress
-				declension.push(w);
-				
+				words.push(w);
 			}
-			words.push(declension);
 		}
-		let mut wc = WordCollector{words, parts_of_speech, meanings, gs, string2index: HashMap::new()};
-		for ind in 0..wc.words.len(){
-			for (form_index, word_form) in wc.words[ind].iter().enumerate(){
-				
-					string2index.insert(UnsafeStrSaver::new(&*word_form.src), (ind, form_index));
-				
+		let mut wc = WordCollector{words, word_form_groups, gs, string2index: HashMap::new()};
+		for (ind, wgroup) in wc.word_form_groups.iter().enumerate(){
+			for word_index in wgroup.range(){
+				let word_form = &wc.words[word_index];
+				string2index.insert(UnsafeStrSaver::new(&*word_form.src), (ind, word_index));
 			}
 		}
 		wc.string2index = string2index;
@@ -197,9 +192,11 @@ impl WordCollector{
 
 		let mut collected = false;
 
-		for (w_index, _) in self.into_iter(ignore){
-			
-			let res = WordDistanceResult::from_forms(to_find, &self, w_index, &self.gs, field);
+		for wform_group in self.word_form_groups.iter(){
+			if ignore.contains(&&*wform_group.speech_part){
+				continue;
+			}
+			let res = WordDistanceResult::from_forms(to_find, &self, wform_group, &self.gs, field);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -226,43 +223,14 @@ impl WordCollector{
 		crate::reader::load_default_word_collector()
 	}
 
-	pub fn into_iter<'a, 'b>(&'a self, ignore: Vec<&'b str>) -> WordCollectIterator<'a, 'b>{
-		WordCollectIterator{wc: self, count: 0,
-		 ignore_parts_of_speech: ignore}
-	}
-
 	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
-		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, _)| self.meanings[*ind])
+		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, _)| self.word_form_groups[*ind].meaning)
 	}
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
-		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, f_ind)| &self.words[*ind][*f_ind])
+		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(_, w_ind)| &self.words[*w_ind])
 	}
 }
 
-pub struct WordCollectIterator<'a, 'b>{
-	wc: &'a WordCollector,
-	count: usize,
-	ignore_parts_of_speech: Vec<&'b str>
-}
-
-impl<'a, 'b> Iterator for WordCollectIterator<'a, 'b>{
-	type Item = (usize, &'a Vec<Word>);
-	fn next(&mut self)-> Option<Self::Item> {
-		if self.count >= self.wc.words.len(){
-			return None;
-		}
-
-		let w_forms = &self.wc.words[self.count];
-		if self.ignore_parts_of_speech.contains(&&&*self.wc.parts_of_speech[self.count]){
-			self.count += 1;
-			self.next()
-		}
-		else{
-			self.count += 1;
-			Some((self.count - 1, w_forms))
-		}
-	}
-}
 #[cfg(test)]
 #[test]
 fn memory_measure(){
@@ -284,7 +252,7 @@ fn word_collect(){
 	let current = Instant::now();
 	
 
-	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).unwrap();//&vec!["гиппопотам", "минотавр"]).unwrap();
+	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).expect("Can't find meaning of words");//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field)));
@@ -308,6 +276,7 @@ fn word_collect(){
 	*/
 }
 
+#[ignore]
 #[cfg(test)]
 #[test]
 fn profile_load(){
