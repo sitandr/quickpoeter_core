@@ -97,7 +97,7 @@ impl UnsafeStrSaver{
 	fn to_str(&self) -> &str{
 		unsafe{
 			let slice = slice::from_raw_parts(self.0, self.1);
-			str::from_utf8(slice).unwrap()
+			str::from_utf8_unchecked(slice) // correct if constructed using new
 		}
 	}
 
@@ -306,6 +306,23 @@ fn word_collect(){
 	println!("Sleeping (basic)");
 	thread::sleep(Duration::from_millis(10_000));
 	*/
+}
 
+#[cfg(test)]
+#[test]
+fn profile_load(){
+	use std::{thread, time::Duration};
+	let mut wc = WordCollector::load_default();
 
+	
+	println!("Sleeping (basic)");
+	thread::sleep(Duration::from_millis(10_000));
+	
+	wc.words = vec![];
+	println!("Removed words");
+	thread::sleep(Duration::from_millis(10_000));
+
+	wc.string2index = HashMap::new();
+	println!("Removed stringify");
+	thread::sleep(Duration::from_millis(10_000));
 }
