@@ -15,7 +15,6 @@ use std::iter::zip;
 use std::slice;
 use std::str;
 use crate::reader::GeneralSettings;
-use crate::translator_struct::WordForms;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::VECTOR_DIM;
@@ -122,6 +121,19 @@ impl Hash for UnsafeStrSaver {
 }
 
 unsafe impl Sync for UnsafeStrSaver {}
+
+pub struct WordForms{
+	pub start_index: usize,
+	pub len: usize,
+	pub meaning: [f32; VECTOR_DIM],
+	pub speech_part: String
+}
+
+impl WordForms{
+	pub fn range(&self) -> std::ops::Range<usize>{
+		self.start_index..self.start_index + self.len
+	}
+}
 
 pub struct WordCollector{
 	pub words: Vec<Word>,

@@ -4,7 +4,6 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
-use crate::reader::VECTOR_DIM;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Accent{
@@ -13,10 +12,19 @@ pub enum Accent{
 	Secondary,
 }
 
-pub trait Phone{
+#[allow(dead_code)]
+enum Phone{
+	
+}
+
+pub trait Phonable{
 	fn distance(&self, second: &Self) -> f32;
 	fn from_vec(v: &Vec<char>) -> Self;
 	fn contains_char(c: &char) -> bool;
+}
+
+pub trait Voweable{
+	fn accent_dist(&self, second: &Self, sett: &StressSettings) -> f32;
 }
 
 #[derive(Debug, Clone)]
@@ -25,19 +33,6 @@ pub struct Syll{
 	// -_a_nd-
 	leading_vowel: Option<Vowel>, // None at first if starting from cons
 	trailing_consonants: SmallVec<[Consonant;5]>
-}
-
-pub struct WordForms{
-	pub start_index: usize,
-	pub len: usize,
-	pub meaning: [f32; VECTOR_DIM],
-	pub speech_part: String
-}
-
-impl WordForms{
-	pub fn range(&self) -> std::ops::Range<usize>{
-		self.start_index..self.start_index + self.len
-	}
 }
 
 #[derive(Debug, Clone)]
@@ -112,7 +107,7 @@ impl Word{
 			let s2 = &other.sylls[i2];
 			if let Some(v1) = &s1.leading_vowel{
 				if let Some(v2) = &s2.leading_vowel{
-					dist += v1.accent_distance(v2, sett);
+					dist += v1.accent_dist(v2, sett);
 				}
 			}
 		}

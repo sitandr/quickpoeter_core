@@ -89,11 +89,14 @@ pub struct Vowel{
 	pub letter: u8,
 	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
 }
-impl Vowel{
-	pub const ALL: [char; 8] = ['а', 'о', 'э', 'и', 'ы', 'у', '!', '+'];
 
-	// needs stress_settings -> doesn't belong to Phone
-	pub fn accent_distance(&self, other: &Self, sett: &StressSettings) -> f32{
+impl Vowel {
+	pub const ALL: [char; 8] = ['а', 'о', 'э', 'и', 'ы', 'у', '!', '+'];
+}
+
+impl Voweable for Vowel{
+	// needs stress_settings -> doesn't belong to Phonable
+	fn accent_dist(&self, other: &Self, sett: &StressSettings) -> f32{
 		type A = Accent;
 		let k: f32 = match (self.accent, other.accent) {
 			(A::NoAccent, A::NoAccent) => 1.0,
@@ -123,7 +126,7 @@ T: 'a + Eq
 	array.position(|r| *r == elem).unwrap() as u8
 }
 
-impl Phone for Vowel{
+impl Phonable for Vowel{
 	fn distance(&self, other: &Self) -> f32{
 		if self.letter == symbol_id!(+) || self.letter == symbol_id!(!) || other.letter == symbol_id!(+) || other.letter == symbol_id!(!){
 			return 1.0;
@@ -163,7 +166,7 @@ impl Phone for Vowel{
 	}
 }
 
-impl Phone for Consonant{
+impl Phonable for Consonant{
 	fn distance(&self, other: &Self) -> f32{
 		if self.letter == other.letter{
 			return 0.0;
