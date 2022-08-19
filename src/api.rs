@@ -50,23 +50,35 @@ pub fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, Stri
     }
     else{
         to_find = to_find.to_lowercase();
-        to_find = auto_stress(&wc, &to_find).ok_or("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)".to_string())?;
-        let chrs: Vec<char> = to_find.chars().collect();
-        for i in 0..chrs.len(){
-            let c = chrs[i];
-            match c{
-                'а' ..= 'я' => {},
-                'ё' => {},
-                '`'|'\'' => {
-                    let previous_c = chrs.get(i - 1).ok_or("Stress symbol at start of the word".to_string())?;
-                    if !(Vowel::ALL.contains(previous_c)||J_VOWELS.contains(previous_c)){
-                        return Err("Stress not after the vowel".to_owned());
-                    }
-                },
-                _ => return Err(format!("Unknown charachter {}", c)),
+        if !to_find.contains('\''){
+            let found = wc.get_word(&to_find);
+            if let Some(founded_some) = found{
+                Ok(founded_some.clone())
+            }
+            else{
+                Err("Word not found; Please mind the stress with «'» (and «`» for secondary stresses)".to_string())
             }
         }
-        Ok(Word::new(&to_find, false))
+        else{
+            let chrs: Vec<char> = to_find.chars().collect();
+            // check whether the word is correct
+            for i in 0..chrs.len(){
+                let c = chrs[i];
+                match c{
+                    'а' ..= 'я' => {},
+                    'ё' => {},
+                    '`'|'\'' => {
+                        let previous_c = chrs.get(i - 1).ok_or("Stress symbol at start of the word".to_string())?;
+                        if !(Vowel::ALL.contains(previous_c)||J_VOWELS.contains(previous_c)){
+                            return Err("Stress not after the vowel".to_owned());
+                        }
+                    },
+                    _ => return Err(format!("Unknown charachter {}", c)),
+                }
+            }
+            // construct it
+            Ok(Word::new(&to_find, false))
+        }
     }
 }
 
@@ -99,17 +111,4 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Ar
 #[allow(dead_code)]
 pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
     wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field)
-}
-
-pub fn auto_stress(wc: &WordCollector, to_find: &str) -> Option<String>{
-    if !to_find.contains('\''){
-        let found = wc.get_word(&to_find);
-        if let Some(founded_some) = found{
-            return Some(founded_some.src.to_string());
-        }
-        else{
-            return None;
-        }
-    }
-    Some(to_find.to_string())
 }

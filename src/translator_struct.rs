@@ -18,7 +18,7 @@ pub trait Phone{
 	fn contains_char(c: &char) -> bool;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Syll{
 	// to get simplier logic, sylls are defined as starting from vowel
 	// -_a_nd-
@@ -26,7 +26,7 @@ pub struct Syll{
 	trailing_consonants: SmallVec<[Consonant;5]>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Word{
 	// unlike python version, the letter order stays the same
 	pub sylls: Vec<Syll>, // syllables
@@ -60,7 +60,9 @@ impl Word{
 		}
 		sylls.push(Syll{leading_vowel: l_vowel, trailing_consonants: t_cons});
 
-		Self{sylls, src: w.to_string(), only_stress_structure: false}
+		let src = w.replace("'", "").replace("`", "");
+
+		Self{sylls, src, only_stress_structure: false}
 	}
 
 	/// constructs new only_stress_structure word
@@ -70,7 +72,7 @@ impl Word{
 			'!' => Vowel{letter: symbol_id!(!), accent: Accent::Primary},
 			_ => unreachable!("Bad identifier, {}", l)
 		}).map(|stress| Syll{leading_vowel: Some(stress), trailing_consonants: smallvec![]}).collect();
-		Self{sylls: sylls, src: w.to_string(), only_stress_structure: true}
+		Self{sylls, src: w.to_string(), only_stress_structure: true}
 	}
 
 	fn has_cons_end(&self) -> bool{

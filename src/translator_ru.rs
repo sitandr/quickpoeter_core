@@ -3,6 +3,9 @@ use crate::reader::StressSettings;
 /*use lazy_static::lazy_static;
 use regex::Regex;*/
 
+// use smallvec::SmallVec;
+// type Vec<T> = SmallVec<[T;15]>;
+
 const J_MARKERS: [char; 10] = ['а', 'о', 'э', 'и', 'ы', 'у', 'ь', 'ъ', '\'', '`']; // ' and ` mean there is a vowel before => marker
 
 pub const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
@@ -81,7 +84,7 @@ macro_rules! range_match {
 }
 */
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vowel{
 	pub letter: u8,
 	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
@@ -102,7 +105,7 @@ impl Vowel{
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Consonant{
 	pub letter: u8,
 	pub voiced: bool, // звонкая
