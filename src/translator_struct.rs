@@ -83,7 +83,7 @@ impl Word{
 								other => unreachable!("Bad consonant identifier {}", other)
 							}
 						},
-						Phone::None => unreachable!()
+						Phone::None => panic!("Modificator {} at the word start", l)
 					}
 				}
 				Phone::Consonant(_)|Phone::Vowel(_) => {
@@ -102,6 +102,10 @@ impl Word{
 	fn count_vowels(mut self) -> Self{
 		self.vowel_count = self.vowels().count();
 		self
+	}
+
+	pub fn get_vowel_count(&self) -> usize{
+		return self.vowel_count
 	}
 
 	/// constructs new only_stress_structure word
@@ -166,10 +170,11 @@ impl Word{
 		let first_iter = self.vowels().rev();
 		let second_iterator = other.vowels().rev();
 		
-		for (v1, v2) in first_iter.zip(second_iterator){ // self is smaller
-			dist += v1.accent_dist(v2, sett);
+		for (i, (v1, v2)) in first_iter.zip(second_iterator).enumerate(){ // self is smaller
+			// dbg!(v1, v2, i, v1.accent_dist(v2, sett) / (i as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending));
+			dist += v1.accent_dist(v2, sett) / (i as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 		}
-		dist/(self.vowel_count as f32).powf(sett.asympt)*sett.weight
+		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight
 	}
 
 	pub fn measure_cons_dist(&self, other: &Self, sett: &AlliterationSettings) -> f32{
@@ -188,7 +193,7 @@ impl Word{
 				let d2 = (syll_ind_2) as f32 + (cons_ind_2 - s_ind_2) as f32 /sum_syl_len;
 
                 let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
-                k *= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
+                k /= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 				let c1 = unwrap_enum!(&self.phones[cons_ind_1], Phone::Consonant(ref c) => c);
 				let c2 = unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
                 dist += c1.distance(&c2)/k;
@@ -196,7 +201,7 @@ impl Word{
 				}
 			}
 		}
-		dist/(self.vowel_count as f32).powf(sett.asympt)*sett.weight
+		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight
 	}
 
 	// TODO: ending is more important!
@@ -204,10 +209,10 @@ impl Word{
 	pub fn measure_struct_dist(&self, other: &Self, sett: &ConsonantStructureSettings) -> f32{
 		let mut dist = 0.0;
 		
-		for ((_i1, l1), (_i2, l2)) in self.splitted_consonants_rev().zip(other.splitted_consonants_rev()){ // self is smaller
-			dist += ((l1 as f32 - l2 as f32)).abs().powf(sett.pow);
+		for (i, ((_, l1), (_, l2))) in self.splitted_consonants_rev().zip(other.splitted_consonants_rev()).enumerate(){ // self is smaller
+			dist += ((l1 as f32 - l2 as f32)).abs().powf(sett.pow) / (i as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 		}
-		dist/(self.vowel_count as f32).powf(sett.asympt)*sett.weight
+		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight
 	}
 
 	pub fn measure_misc(&self, other: &Self, sett: &MiscSettings) -> f32{
@@ -283,6 +288,16 @@ impl Display for Word{
 	}
 }
 
+#[cfg(test)]
+#[test]
+fn measure_struct(){
+	let gs = GeneralSettings::load_default();
+	let w = Word::new("приве'т", false);
+	let w1 = Word::new("уже'", false);
+	let w2 = Word::new("мише'нь", false);
+	dbg!(w.measure_struct_dist(&w1, &gs.consonant_structure));
+	dbg!(w.measure_struct_dist(&w2, &gs.consonant_structure));
+}
 
 #[cfg(test)]
 #[test]

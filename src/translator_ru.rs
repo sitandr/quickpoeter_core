@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::translator_struct::*;
 use crate::reader::StressSettings;
 /*use lazy_static::lazy_static;
@@ -45,17 +47,17 @@ const ALLITERATION: [(f32, f32); 12] = [
 ];
 /*
  о 
-  а э 
+  а  э
         и    
 у     ы
 */
-const ASSONANSES: [(i32, i32); 6] = [
-	(5, 5), // а
-	(4, 6), // о
-	(6, 5), // э
-	(9, 4), // и
-	(7, 3), // ы
-	(3, 3) // у
+const ASSONANSES: [(f32, f32); 6] = [
+	(5.0, 5.0), // а
+	(4.0, 6.0), // о
+	(7.0, 5.0), // э
+	(9.0, 4.0), // и
+	(7.0, 3.0), // ы
+	(3.0, 3.0) // у
 ];
 
 macro_rules! symbol_id {
@@ -83,7 +85,7 @@ macro_rules! range_match {
 }
 */
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Vowel{
 	pub letter: u8,
 	pub accent: Accent, // 0 if None, 2 if secondary, 1 if primary\
@@ -107,7 +109,17 @@ impl Voweable for Vowel{
 	}
 }
 
-#[derive(Debug, Clone)]
+impl Debug for Vowel{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}{}", Self::ALL[self.letter as usize], match self.accent {
+			Accent::Primary => "\'",
+			Accent::Secondary => "`",
+			Accent::NoAccent => ""
+		})
+	}
+}
+
+#[derive(Clone)]
 pub struct Consonant{
 	pub letter: u8,
 	pub voiced: bool, // звонкая
@@ -126,7 +138,7 @@ impl Phonable for Vowel{
 		let (x1, y1) = ASSONANSES[self.letter as usize];
 		let (x2, y2) = ASSONANSES[other.letter as usize];
 
-		let res: f32 = (((x1 - x2).pow(2) + (y1 - y2).pow(2)) as f32)/26.0;
+		let res: f32 = (((x1 - x2).abs().sqrt() + (y1 - y2).abs().sqrt()) as f32)/26.0;
 		res
 	}
 
@@ -195,6 +207,12 @@ impl Phonable for Consonant{
 	}
 	fn contains_char(c: &char) -> bool{
 		Self::ALL.contains(c)
+	}
+}
+
+impl Debug for Consonant{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}{}{}", Self::ALL[self.letter as usize], if self.voiced {"*"} else {""}, if self.palatalized {"^"} else {""})
 	}
 }
 

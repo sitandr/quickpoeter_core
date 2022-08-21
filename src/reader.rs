@@ -25,7 +25,10 @@ pub struct StressSettings{
     pub k_strict_stress: f32,
     pub bad_rythm: f32,
     pub asympt: f32,
-    pub weight: f32
+    pub weight: f32,
+    pub shift_syll_ending: f32,
+    pub pow_syll_ending: f32,
+    pub asympt_shift: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -33,6 +36,9 @@ pub struct ConsonantStructureSettings{
     pub pow: f32,
     pub weight: f32,
     pub asympt: f32,
+    pub shift_syll_ending: f32,
+    pub pow_syll_ending: f32,
+    pub asympt_shift: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -43,11 +49,27 @@ pub struct AlliterationSettings{
     pub pow_syll_ending: f32,
     pub weight: f32,
     pub asympt: f32,
+    pub asympt_shift: f32,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct MeaningSettings{
     pub weight: f32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PopularitySettings{
+    pub weight: f32,
+    pub pow: f32
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UnsymmetricalSettings{
+    pub optimal_length: f32,
+    pub less_w: f32,
+    pub less_pow: f32,
+    pub more_w: f32,
+    pub more_pow: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -57,6 +79,8 @@ pub struct GeneralSettings{
     pub consonant_structure: ConsonantStructureSettings,
     pub alliteration: AlliterationSettings,
     pub meaning: MeaningSettings,
+    pub popularity: PopularitySettings,
+    pub unsymmetrical: UnsymmetricalSettings
 }
 
 impl GeneralSettings{

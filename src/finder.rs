@@ -16,6 +16,9 @@ use std::iter::zip;
 use std::slice;
 use std::str;
 use crate::reader::GeneralSettings;
+use crate::reader::MeaningSettings;
+use crate::reader::PopularitySettings;
+use crate::reader::UnsymmetricalSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::VECTOR_DIM;
@@ -32,6 +35,8 @@ pub struct WordDistanceResult<'a>{
 	cons: f32,
 	structure: f32,
 	meaning: f32,
+	popularity: f32,
+	unsymmetrical: f32,
 	pub word: &'a Word,
 }
 
@@ -42,23 +47,44 @@ impl<'collector> WordDistanceResult<'collector>{
 		let (misc, vowel, cons, structure) = to_find.measure_distance(measured, gs);
 
 		let dist = NotNan::new(misc + vowel + cons + structure).unwrap();
-		WordDistanceResult{dist: dist, word: &measured, misc:misc, vowel: vowel, cons: cons, structure: structure, meaning: 0.0}
+		WordDistanceResult{dist, word: &measured, misc, vowel, cons, structure, meaning: 0.0, popularity: 0.0, unsymmetrical: 0.0}
 	}
 
-	pub fn from_forms(to_find: &'_ Word, wc: &'collector WordCollector, forms: &'_ WordForms, gs: &'_ GeneralSettings, field: Option<&MeanField>) -> Self{
+	pub fn from_forms(to_find: &'_ Word, wc: &'collector WordCollector, forms_index: usize, gs: &'_ GeneralSettings, field: Option<&MeanField>) -> Self{
+		let forms = &wc.word_form_groups[forms_index];
 		let mut res = forms.range().map(|i| WordDistanceResult::new(to_find, &wc.words[i], gs)).min().unwrap();
-		res.add_meaning_fine(Some(forms.meaning), field, gs);
+		res.add_meaning_dist(Some(forms.meaning), field, &gs.meaning);
+		res.add_popularity_dist(forms_index, &gs.popularity);
+		res.add_unsymmetrical(&gs.unsymmetrical);
 		res
 	}
 
 	/// (adds *field distance* from meaning to self.dist, if both are not None)
-	pub fn add_meaning_fine(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, gs: &GeneralSettings){
+	/// is incorrect if casted twice
+	pub fn add_meaning_dist(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings){
 		if let Some(field) = field{
 			if let Some(meaning) = meaning{
-				self.meaning += field.dist(meaning) * gs.meaning.weight;
+				self.meaning = field.dist(meaning) * sett.weight;
 				self.dist += self.meaning;
 			}
 		}
+	}
+
+	/// the same
+	pub fn add_popularity_dist(&mut self, index: usize, sett: &PopularitySettings){
+		self.popularity = sett.weight * (index as f32).powf(sett.pow);
+		self.dist += self.popularity;
+	}
+
+	pub fn add_unsymmetrical(&mut self, sett: &UnsymmetricalSettings){
+		let delta = self.word.get_vowel_count() as f32 - sett.optimal_length;
+		if delta.is_sign_positive(){
+			self.unsymmetrical = sett.more_w * delta.powf(sett.more_pow);
+		}
+		else{
+			self.unsymmetrical = sett.less_w * (-delta).powf(sett.less_pow) 
+		}
+		self.dist += self.unsymmetrical;
 	}
 }
 
@@ -88,8 +114,9 @@ fn round3(n: f32) -> f32{
 
 impl Debug for WordDistanceResult<'_>{
 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-		write!(f, "{} — (msc:{}; v:{}, c:{}; s: {}; m: {})", 
-			self.word, round3(self.misc), round3(self.vowel), round3(self.cons), round3(self.structure), round3(self.meaning))
+		write!(f, "{} — (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {})", 
+			self.word, round3(self.misc), round3(self.vowel), round3(self.cons),
+			 round3(self.structure), round3(self.meaning), round3(self.popularity), round3(self.unsymmetrical))
 	}
 }
 
@@ -217,11 +244,11 @@ impl WordCollector{
 
 		let mut collected = false;
 
-		for wform_group in self.word_form_groups.iter(){
+		for (w_index, wform_group) in self.word_form_groups.iter().enumerate(){
 			if ignore.contains(&&*wform_group.speech_part){
 				continue;
 			}
-			let res = WordDistanceResult::from_forms(to_find, &self, wform_group, &self.gs, field);
+			let res = WordDistanceResult::from_forms(to_find, &self, w_index, &self.gs, field);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -256,13 +283,6 @@ impl WordCollector{
 	}
 }
 
-#[cfg(test)]
-#[test]
-fn memory_measure(){
-	use std::mem;
-	dbg!(mem::size_of::<UnsafeStrSaver>());
-	dbg!(mem::size_of::<(usize,usize)>());
-}
 
 #[cfg(test)]
 #[test]
@@ -288,9 +308,6 @@ fn word_collect(){
 	let current = Instant::now();
 	println!("{:?}", wc.get_word("ударение").unwrap().get_stresses());
 	println!("Found stress in {:#?}", current.elapsed());
-
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
-	println!("Found words in {:#?} seconds", current.elapsed());
 
 	//use std::{thread, time::Duration};
 	//let mut wc = wc;
