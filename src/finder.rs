@@ -1,3 +1,4 @@
+use std::fmt::Display;
 /// # Plan of optimization
 /// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
 /// 1. Structurize the endings -> speed up up to ~20 times
@@ -102,6 +103,12 @@ impl UnsafeStrSaver{
 		}
 	}
 
+	fn to_bytes(&self) -> &[u8]{
+		unsafe{
+			slice::from_raw_parts(self.0, self.1)
+		}
+	}
+
 	fn new(s: &str) -> Self{
 		UnsafeStrSaver(s.as_ptr(), s.len())
 	}
@@ -109,15 +116,21 @@ impl UnsafeStrSaver{
 
 impl PartialEq for UnsafeStrSaver {
     fn eq(&self, other: &Self) -> bool {
-        self.to_str() == other.to_str()
+        self.to_bytes() == other.to_bytes()
     }
 }
 impl Eq for UnsafeStrSaver {}
 
 impl Hash for UnsafeStrSaver {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.to_str().hash(state);
+        self.to_bytes().hash(state);
     }
+}
+
+impl Display for UnsafeStrSaver{
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.to_str())
+	}
 }
 
 unsafe impl Sync for UnsafeStrSaver {}
@@ -288,7 +301,7 @@ fn word_collect(){
 	*/
 }
 
-
+#[ignore]
 #[cfg(test)]
 #[test]
 fn profile_load(){
