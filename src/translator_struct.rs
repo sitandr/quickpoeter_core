@@ -176,23 +176,22 @@ impl Word{
 		let mut dist = 0.0;
 
 		// syll_index is index from the word end
-		for (syll_ind_1, (s_index_1, len_1)) in self.splitted_consonants_rev().enumerate(){
-			for (syll_ind_2, (s_index_2, len_2)) in other.splitted_consonants_rev().enumerate(){
+		for (syll_ind_1, (s_ind_1, len_1)) in self.splitted_consonants_rev().enumerate(){
+			for (syll_ind_2, (s_ind_2, len_2)) in other.splitted_consonants_rev().enumerate(){
 				
 				let sum_syl_len = (len_1 + len_2) as f32;
 
-				for cons_ind_1 in s_index_1..s_index_1 + len_1{
-				for cons_ind_2 in s_index_2..s_index_2 + len_2{
+				for cons_ind_1 in s_ind_1..s_ind_1 + len_1{
+				for cons_ind_2 in s_ind_2..s_ind_2 + len_2{
 
-				let d1 = (syll_ind_1) as f32 + (len_1 - syll_ind_1) as f32 /sum_syl_len;
-				let d2 = (syll_ind_2) as f32 + (len_2 - syll_ind_2) as f32 /sum_syl_len;
+				let d1 = (syll_ind_1) as f32 + (cons_ind_1 - s_ind_1) as f32 /sum_syl_len;
+				let d2 = (syll_ind_2) as f32 + (cons_ind_2 - s_ind_2) as f32 /sum_syl_len;
 
                 let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
                 k *= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 				let c1 = unwrap_enum!(&self.phones[cons_ind_1], Phone::Consonant(ref c) => c);
 				let c2 = unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
                 dist += c1.distance(&c2)/k;
-				
 				}
 				}
 			}
