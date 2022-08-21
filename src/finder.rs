@@ -23,6 +23,8 @@ use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::VECTOR_DIM;
 use ordered_float::NotNan;
+use serde::Serialize;
+use serde::ser::SerializeStruct;
 use crate::meaner::MeanField;
 use std::collections::BinaryHeap;
 
@@ -117,6 +119,33 @@ impl Debug for WordDistanceResult<'_>{
 		write!(f, "{} — (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {})", 
 			self.word, round3(self.misc), round3(self.vowel), round3(self.cons),
 			 round3(self.structure), round3(self.meaning), round3(self.popularity), round3(self.unsymmetrical))
+	}
+}
+
+impl Serialize for WordDistanceResult<'_>{
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+		where
+			S: serde::Serializer {
+		let mut s = serializer.serialize_struct("WordDistanceResult", 8)?;
+		s.serialize_field("dist", &self.dist.into_inner())?;
+		s.serialize_field("misc", &self.misc)?;
+		s.serialize_field("vowel", &self.vowel)?;
+		s.serialize_field("cons", &self.cons)?;
+		s.serialize_field("struct", &self.structure)?;
+		s.serialize_field("meaning", &self.meaning)?;
+		s.serialize_field("popular", &self.popularity)?;
+		s.serialize_field("popular", &self.popularity)?;
+		s.serialize_field("unsymm", &self.unsymmetrical)?;
+		s.serialize_field("word", &self.word.src)?;
+		s.end()
+		/*pub dist: NotNan<f32>,
+		misc: f32,
+		vowel: f32,
+		cons: f32,
+		structure: f32,
+		meaning: f32,
+		popularity: f32,
+		unsymmetrical: f32,*/
 	}
 }
 

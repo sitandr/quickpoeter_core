@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_pickle::de::DeOptions;
 use half::f16;
 use crate::finder::WordCollector;
@@ -13,13 +13,13 @@ pub const VECTOR_DIM: usize = 150;
 
 /* General settings */
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct MiscSettings{
     pub same_cons_end: f32,
     pub length_diff_fine: f32
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct StressSettings{
     pub k_not_strict_stress: f32,
     pub k_strict_stress: f32,
@@ -31,7 +31,7 @@ pub struct StressSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ConsonantStructureSettings{
     pub pow: f32,
     pub weight: f32,
@@ -41,7 +41,7 @@ pub struct ConsonantStructureSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct AlliterationSettings{
     pub shift_coord: f32,
     pub shift_syll_ending: f32,
@@ -52,18 +52,18 @@ pub struct AlliterationSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct MeaningSettings{
     pub weight: f32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct PopularitySettings{
     pub weight: f32,
     pub pow: f32
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct UnsymmetricalSettings{
     pub optimal_length: f32,
     pub less_w: f32,
@@ -72,7 +72,7 @@ pub struct UnsymmetricalSettings{
     pub more_pow: f32,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GeneralSettings{
     pub misc: MiscSettings,
     pub stresses: StressSettings, 
