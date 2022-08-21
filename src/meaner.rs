@@ -83,7 +83,7 @@ impl MeanField{
 		if let Some(sigma) = self.sigmas{
 			let mut dist: f32 = 0.0;
 			for i in 0..VECTOR_DIM{
-				dist += ((vector[i] - self.average[i]).abs()).powf(0.5)/sigma[i]/10.0;
+				dist += ((vector[i] - self.average[i]).abs()).powf(0.57)/sigma[i]/10.0;
 			}
 			dist
 		}

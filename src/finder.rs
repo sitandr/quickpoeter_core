@@ -275,11 +275,15 @@ impl WordCollector{
 		crate::reader::load_default_word_collector()
 	}
 
+	pub fn get_index(&self, not_stressed: &str) -> Option<&(usize, usize)>{
+		self.string2index.get(&UnsafeStrSaver::new(not_stressed))
+	}
+
 	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
-		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(ind, _)| self.word_form_groups[*ind].meaning)
+		self.get_index(not_stressed).map(|(ind, _)| self.word_form_groups[*ind].meaning)
 	}
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
-		self.string2index.get(&UnsafeStrSaver::new(not_stressed)).map(|(_, w_ind)| &self.words[*w_ind])
+		self.get_index(not_stressed).map(|(_, w_ind)| &self.words[*w_ind])
 	}
 }
 
@@ -302,8 +306,6 @@ fn word_collect(){
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field)));
 	println!("Found words in {:#?} seconds", current.elapsed());
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, None));
 
 	let current = Instant::now();
 	println!("{:?}", wc.get_word("ударение").unwrap().get_stresses());
