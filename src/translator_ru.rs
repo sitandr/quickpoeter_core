@@ -46,15 +46,14 @@ const ALLITERATION: [(f32, f32); 12] = [
 /*
  о 
   а э 
-           
+        и    
 у     ы
-        и
 */
 const ASSONANSES: [(i32, i32); 6] = [
 	(5, 5), // а
 	(4, 6), // о
 	(6, 5), // э
-	(8, 2), // и
+	(9, 4), // и
 	(7, 3), // ы
 	(3, 3) // у
 ];
@@ -116,14 +115,7 @@ pub struct Consonant{
 }
 impl Consonant{
 	/// order is extremely important
-	const ALL: [char; 13] = ['р', 'л', 'н', 'м', 'п', 'т', 'к', 'с', 'х', 'ш', 'ч', 'ф', 'й'];
-}
-
-fn find_u8<'a, T, I>(elem: T, mut array: I) -> u8
-where I: Iterator<Item=&'a T>,
-T: 'a + Eq
-{
-	array.position(|r| *r == elem).unwrap() as u8
+	pub const ALL: [char; 13] = ['р', 'л', 'н', 'м', 'п', 'т', 'к', 'с', 'х', 'ш', 'ч', 'ф', 'й'];
 }
 
 impl Phonable for Vowel{
@@ -217,7 +209,7 @@ pub fn transcript(w: &str, is_adj: bool) -> String{
 	i_soften(&mut w);
     letter_replace(&mut w);
     remove_voice(&mut w);
-
+	replace_oa(&mut w);
     w.into_iter().collect()
 }
 
@@ -344,6 +336,14 @@ fn remove_voice(w: &mut Vec<char>){
 	}
 }
 
+fn replace_oa(w: &mut Vec<char>){
+	for i in 0..w.len()-1{
+		if w[i] == 'о' && !(w[i + 1] == '\'' || w[i + 1] == '`'){
+			w[i] = 'а';
+		}
+	}
+}
+
 fn replace_g_in_adj(w: &mut Vec<char>){
 	if w.len() < 3{
 		return;
@@ -367,10 +367,10 @@ fn j_replace_check(){
 	assert_eq!(transcript("Енёня`яя", false), "йэн^о'н^а`йайа");
 	assert_eq!(transcript("миньо'н", false), "м^ин^йо'н");
 	assert_eq!(transcript("бабузжка", false), "п*ап*ус*шка");
-	assert_eq!(transcript("гроб", false), "к*роп");
-	assert_eq!(transcript("дождь", false), "т*ошт^");
+	assert_eq!(transcript("гро'б", false), "к*ро'п");
+	assert_eq!(transcript("до'ждь", false), "т*о'шт^");
 	assert_eq!(transcript("его", true), "йэф*о");
-	assert_eq!(transcript("кроманьонец", false), "кроман^йон^этс");
+	assert_eq!(transcript("кроманьо'нец", false), "краман^йо'н^этс");
 	assert_eq!(transcript("Ёжик", false), "йо'ш*ик");
 }
 
@@ -378,7 +378,7 @@ fn j_replace_check(){
 #[cfg(test)]
 #[test]
 fn testing(){
-	use std::time::{Instant};
+	use std::time::Instant;
 
 	let current = Instant::now(); 
 	let _ = J_MARKERS.contains(&'а');

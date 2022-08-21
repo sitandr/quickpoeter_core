@@ -264,7 +264,7 @@ fn word_collect(){
 	let current = Instant::now();
 	
 
-	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).expect("Can't find meaning of words");//&vec!["гиппопотам", "минотавр"]).unwrap();
+	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).expect("Can't find words");//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
 	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field)));
@@ -288,7 +288,7 @@ fn word_collect(){
 	*/
 }
 
-#[ignore]
+
 #[cfg(test)]
 #[test]
 fn profile_load(){
