@@ -18,6 +18,7 @@ use std::str;
 use crate::reader::GeneralSettings;
 use crate::reader::MeaningSettings;
 use crate::reader::PopularitySettings;
+use crate::reader::SamePartSpeechSettings;
 use crate::reader::UnsymmetricalSettings;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
@@ -39,6 +40,7 @@ pub struct WordDistanceResult<'a>{
 	meaning: f32,
 	popularity: f32,
 	unsymmetrical: f32,
+	same_part: f32,
 	pub word: &'a Word,
 }
 
@@ -49,37 +51,40 @@ impl<'collector> WordDistanceResult<'collector>{
 		let (misc, vowel, cons, structure) = to_find.measure_distance(measured, gs);
 
 		let dist = NotNan::new(misc + vowel + cons + structure).unwrap();
-		WordDistanceResult{dist, word: &measured, misc, vowel, cons, structure, meaning: 0.0, popularity: 0.0, unsymmetrical: 0.0}
+		WordDistanceResult{dist, word: &measured, misc, vowel, cons, structure,
+			 meaning: 0.0, popularity: 0.0, unsymmetrical: 0.0, same_part: 0.0}
 	}
 
 	pub fn from_forms(to_find: &'_ Word, wc: &'collector WordCollector, forms_index: usize, gs: &'_ GeneralSettings, field: Option<&MeanField>) -> Self{
 		let forms = &wc.word_form_groups[forms_index];
-		let mut res = forms.range().map(|i| WordDistanceResult::new(to_find, &wc.words[i], gs)).min().unwrap();
-		res.add_meaning_dist(Some(forms.meaning), field, &gs.meaning);
-		res.add_popularity_dist(forms_index, &gs.popularity);
-		res.add_unsymmetrical(&gs.unsymmetrical);
-		res
+		let res = forms.range().map(|i| WordDistanceResult::new(to_find, &wc.words[i], gs)).min().unwrap();
+		res.add_meaning_dist(Some(forms.meaning), field, &gs.meaning)
+		.add_popularity_dist(forms_index, &gs.popularity)
+		.add_unsymmetrical_dist(&gs.unsymmetrical)
+		.add_speech_part_dist(wc.get_speech_part(&to_find.src), &*forms.speech_part, &gs.same_speech_part)
 	}
 
 	/// (adds *field distance* from meaning to self.dist, if both are not None)
 	/// is incorrect if casted twice
-	pub fn add_meaning_dist(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings){
+	pub fn add_meaning_dist(mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings) -> Self{
 		if let Some(field) = field{
 			if let Some(meaning) = meaning{
-				self.meaning = field.dist(meaning) * sett.weight;
+				self.meaning = field.dist(meaning, sett) * sett.weight;
 				self.dist += self.meaning;
 			}
 		}
+		self
 	}
 
 	/// the same
-	pub fn add_popularity_dist(&mut self, index: usize, sett: &PopularitySettings){
+	pub fn add_popularity_dist(mut self, index: usize, sett: &PopularitySettings) -> Self{
 		self.popularity = sett.weight * (index as f32).powf(sett.pow);
 		self.dist += self.popularity;
+		self
 	}
 
-	pub fn add_unsymmetrical(&mut self, sett: &UnsymmetricalSettings){
-		let delta = self.word.get_vowel_count() as f32 - sett.optimal_length;
+	pub fn add_unsymmetrical_dist(mut self, sett: &UnsymmetricalSettings) -> Self{
+		let delta = self.word.get_phones_count() as f32 - sett.optimal_length;
 		if delta.is_sign_positive(){
 			self.unsymmetrical = sett.more_w * delta.powf(sett.more_pow);
 		}
@@ -87,6 +92,25 @@ impl<'collector> WordDistanceResult<'collector>{
 			self.unsymmetrical = sett.less_w * (-delta).powf(sett.less_pow) 
 		}
 		self.dist += self.unsymmetrical;
+		self
+	}
+
+	pub fn add_speech_part_dist(mut self, to_find_sp: Option<&str>, my_sp: &str, sett: &SamePartSpeechSettings) -> Self{
+		match to_find_sp{
+			None => self,
+			Some(sp) => {
+				self.same_part = match (sp, my_sp) {
+					("г", "г") => sett.verb,
+					("с", "с") => sett.noun,
+					("п", "п") => sett.adj,
+					("н", "н") => sett.adv,
+					_ => 0.0 
+				};
+				self.dist += self.same_part;
+				self
+			}
+		}
+		
 	}
 }
 
@@ -116,9 +140,9 @@ fn round3(n: f32) -> f32{
 
 impl Debug for WordDistanceResult<'_>{
 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-		write!(f, "{} — (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {})", 
+		write!(f, "{} — (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {}; sSP: {})", 
 			self.word, round3(self.misc), round3(self.vowel), round3(self.cons),
-			 round3(self.structure), round3(self.meaning), round3(self.popularity), round3(self.unsymmetrical))
+			 round3(self.structure), round3(self.meaning), round3(self.popularity), round3(self.unsymmetrical), round3(self.same_part))
 	}
 }
 
@@ -136,6 +160,7 @@ impl Serialize for WordDistanceResult<'_>{
 		s.serialize_field("popular", &self.popularity)?;
 		s.serialize_field("popular", &self.popularity)?;
 		s.serialize_field("unsymm", &self.unsymmetrical)?;
+		s.serialize_field("sameSP", &self.same_part)?;
 		s.serialize_field("word", &self.word.src)?;
 		s.end()
 		/*pub dist: NotNan<f32>,
@@ -308,11 +333,20 @@ impl WordCollector{
 		self.string2index.get(&UnsafeStrSaver::new(not_stressed))
 	}
 
-	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
-		self.get_index(not_stressed).map(|(ind, _)| self.word_form_groups[*ind].meaning)
-	}
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
 		self.get_index(not_stressed).map(|(_, w_ind)| &self.words[*w_ind])
+	}
+
+	pub fn get_forms(&self, not_stressed: &str) -> Option<&WordForms>{
+		self.get_index(not_stressed).map(|(ind, _)| &self.word_form_groups[*ind])
+	}
+
+	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
+		self.get_forms(not_stressed).map(|wf| wf.meaning)
+	}
+
+	pub fn get_speech_part(&self, not_stressed: &str) -> Option<&str>{
+		self.get_forms(not_stressed).map(|wf| &*wf.speech_part)
 	}
 }
 

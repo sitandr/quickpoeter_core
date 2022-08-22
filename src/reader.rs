@@ -54,6 +54,9 @@ pub struct AlliterationSettings{
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct MeaningSettings{
+    pub pow: f32,
+    pub single_pow: f32,
+    pub single_weight: f32,
     pub weight: f32,
 }
 
@@ -73,6 +76,14 @@ pub struct UnsymmetricalSettings{
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct SamePartSpeechSettings{
+    pub verb: f32,
+    pub noun: f32,
+    pub adj: f32,
+    pub adv: f32,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GeneralSettings{
     pub misc: MiscSettings,
     pub stresses: StressSettings, 
@@ -80,7 +91,8 @@ pub struct GeneralSettings{
     pub alliteration: AlliterationSettings,
     pub meaning: MeaningSettings,
     pub popularity: PopularitySettings,
-    pub unsymmetrical: UnsymmetricalSettings
+    pub unsymmetrical: UnsymmetricalSettings,
+    pub same_speech_part: SamePartSpeechSettings
 }
 
 impl GeneralSettings{

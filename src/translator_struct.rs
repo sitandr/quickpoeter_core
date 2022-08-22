@@ -104,8 +104,13 @@ impl Word{
 		self
 	}
 
+	#[allow(dead_code)]
 	pub fn get_vowel_count(&self) -> usize{
 		return self.vowel_count
+	}
+
+	pub fn get_phones_count(&self) -> usize{
+		return self.phones.len()
 	}
 
 	/// constructs new only_stress_structure word
@@ -236,7 +241,7 @@ impl Word{
 		if first.only_stress_structure || second.only_stress_structure{
 			vowel = first.measure_vowel_dist(second, &gs.stresses);
 
-			if second.vowel_count == first.vowel_count{
+			if second.vowel_count != first.vowel_count{
 				misc = 100_000.0;
 			}
 			else{

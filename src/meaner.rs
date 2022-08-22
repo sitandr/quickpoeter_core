@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use crate::reader::VECTOR_DIM;
+use crate::reader::{VECTOR_DIM, MeaningSettings};
 use crate::finder::WordCollector;
 use ordered_float::NotNan;
 
@@ -43,7 +43,7 @@ impl MeanField{
 			}
 		}
 
-		MeanField{average: average, sigmas: Some(sigma)}
+		MeanField{average, sigmas: Some(sigma)}
 	}
 
 	pub fn try_new(vectors: Vec<[f32;VECTOR_DIM]>) -> Option<Self>{
@@ -78,17 +78,17 @@ impl MeanField{
 		MeanField{average: vector, sigmas: None}
 	}
 
-	pub fn dist(&self, vector: [f32;VECTOR_DIM]) -> f32{
+	pub fn dist(&self, vector: [f32;VECTOR_DIM], sett: &MeaningSettings) -> f32{
 
 		if let Some(sigma) = self.sigmas{
 			let mut dist: f32 = 0.0;
 			for i in 0..VECTOR_DIM{
-				dist += ((vector[i] - self.average[i]).abs()).powf(0.57)/sigma[i]/10.0;
+				dist += ((vector[i] - self.average[i]).abs()).powf(sett.pow)/sigma[i]/10.0;
 			}
 			dist
 		}
 		else{
-			dist_arrays(self.average, vector)
+			dist_arrays(self.average, vector, sett.single_pow) * sett.single_weight
 		}
 		
 	}
@@ -114,10 +114,10 @@ pub fn map_with_failures<'a, T, U, F, I>(iter: I, f: F) -> Result<Vec<U>, Vec<T>
 	}
 }
 
-pub fn dist_arrays(v1: [f32;VECTOR_DIM], v2: [f32;VECTOR_DIM]) -> f32{
+pub fn dist_arrays(v1: [f32;VECTOR_DIM], v2: [f32;VECTOR_DIM], single_pow: f32) -> f32{
 	let mut sum = 0.0;
 	for i in 0..VECTOR_DIM{
-		sum += (v1[i] - v2[i]).powf(2.0);
+		sum += (v1[i] - v2[i]).powf(single_pow);
 	}
 	sum
 }
