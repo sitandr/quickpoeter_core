@@ -13,13 +13,13 @@ pub const VECTOR_DIM: usize = 150;
 
 /* General settings */
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MiscSettings{
     pub same_cons_end: f32,
     pub length_diff_fine: f32
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StressSettings{
     pub k_not_strict_stress: f32,
     pub k_strict_stress: f32,
@@ -31,7 +31,7 @@ pub struct StressSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ConsonantStructureSettings{
     pub pow: f32,
     pub weight: f32,
@@ -41,7 +41,7 @@ pub struct ConsonantStructureSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AlliterationSettings{
     pub shift_coord: f32,
     pub shift_syll_ending: f32,
@@ -52,7 +52,7 @@ pub struct AlliterationSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MeaningSettings{
     pub pow: f32,
     pub single_pow: f32,
@@ -60,13 +60,13 @@ pub struct MeaningSettings{
     pub weight: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PopularitySettings{
     pub weight: f32,
     pub pow: f32
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct UnsymmetricalSettings{
     pub optimal_length: f32,
     pub less_w: f32,
@@ -75,7 +75,7 @@ pub struct UnsymmetricalSettings{
     pub more_pow: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SamePartSpeechSettings{
     pub verb: f32,
     pub noun: f32,
@@ -83,7 +83,7 @@ pub struct SamePartSpeechSettings{
     pub adv: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GeneralSettings{
     pub misc: MiscSettings,
     pub stresses: StressSettings, 
@@ -121,7 +121,7 @@ pub fn load_default_word_collector() -> WordCollector{
 
 // Don't need it now
 //    let si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
-    WordCollector::new(i2w, mz, vects, GeneralSettings::load_default())
+    WordCollector::new(i2w, mz, vects)
 }
 
 use std::convert::TryInto;
@@ -164,7 +164,7 @@ where T: Deserialize<'a>
     data
 }
 
-fn yaml_read<T>(path: &str) -> T
+pub fn yaml_read<T>(path: &str) -> T
 where T: DeserializeOwned  
 {
     let file = File::open(path).expect(&("Error opening ".to_owned() + path));

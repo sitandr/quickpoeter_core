@@ -1,6 +1,6 @@
 use crate::translator_struct::Word;
 use crate::meaner::MeanField;
-use crate::reader::MeanStrFields;
+use crate::reader::{MeanStrFields, GeneralSettings};
 use crate::finder::{WordCollector, WordDistanceResult};
 use clap::Parser;
 use crate::translator_ru::Vowel;
@@ -99,16 +99,16 @@ pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<Stri
 }
 
 
-pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'a MeanStrFields, args: Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
+pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrFields, gs: &'_ GeneralSettings, args: Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
     let field = get_field_by_key(wc, mf, args.field)?;
     let rps = split_by_plus(args.rps);
     let word = string2word(wc, args.to_find)?;
-    let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, field.as_ref());
+    let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, field.as_ref(), gs);
 
     Ok(words)
 }
 
 #[allow(dead_code)]
-pub fn find<'a>(wc: &'a WordCollector, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
-    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field)
+pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field, gs)
 }

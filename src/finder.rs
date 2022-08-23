@@ -232,13 +232,12 @@ impl WordForms{
 pub struct WordCollector{
 	pub words: Vec<Word>,
 	pub word_form_groups: Vec<WordForms>,
-	pub gs: GeneralSettings,
 	string2index: HashMap<UnsafeStrSaver,
 							(usize, usize)> // first is index of wordformgroup, second is absolute index of word in words
 }
 
 impl WordCollector{
-	pub fn new(i2w: Vec<String>, mut zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>, gs: GeneralSettings) -> WordCollector{
+	pub fn new(i2w: Vec<String>, mut zaliz: HashMap<String, String>, meanings: Vec<[f32; VECTOR_DIM]>) -> WordCollector{
 		let mut words: Vec<Word> = vec![];
 		let mut word_form_groups: Vec<WordForms> = vec![];
 		let mut string2index = HashMap::new();
@@ -277,7 +276,7 @@ impl WordCollector{
 				words.push(w);
 			}
 		}
-		let mut wc = WordCollector{words, word_form_groups, gs, string2index: HashMap::new()};
+		let mut wc = WordCollector{words, word_form_groups, string2index: HashMap::new()};
 		for (ind, wgroup) in wc.word_form_groups.iter().enumerate(){
 			for word_index in wgroup.range(){
 				let word_form = &wc.words[word_index];
@@ -290,7 +289,7 @@ impl WordCollector{
 
 
 
-	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32, field: Option<&MeanField>) -> Vec<WordDistanceResult<'a>>{
+	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32, field: Option<&MeanField>, gs: &GeneralSettings) -> Vec<WordDistanceResult<'a>>{
 
 		let mut heap = BinaryHeap::new();
 		let mut max_d: NotNan<f32> = NotNan::new(f32::MAX).unwrap();
@@ -302,7 +301,7 @@ impl WordCollector{
 			if ignore.contains(&&*wform_group.speech_part){
 				continue;
 			}
-			let res = WordDistanceResult::from_forms(to_find, &self, w_index, &self.gs, field);
+			let res = WordDistanceResult::from_forms(to_find, &self, w_index, gs, field);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -348,6 +347,7 @@ impl WordCollector{
 	pub fn get_speech_part(&self, not_stressed: &str) -> Option<&str>{
 		self.get_forms(not_stressed).map(|wf| &*wf.speech_part)
 	}
+
 }
 
 
@@ -359,6 +359,7 @@ fn word_collect(){
 	let current = Instant::now();
 	let wc = WordCollector::load_default();
 	let mf = MeanStrFields::load_default();
+	let gs = GeneralSettings::load_default();
 	println!("Loaded words in {:#?}", current.elapsed());
 
 	let current = Instant::now();
@@ -367,7 +368,7 @@ fn word_collect(){
 	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).expect("Can't find words");//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field)));
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field), &gs));
 	println!("Found words in {:#?} seconds", current.elapsed());
 
 	let current = Instant::now();
