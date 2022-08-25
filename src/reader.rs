@@ -97,7 +97,7 @@ pub struct GeneralSettings{
 
 impl GeneralSettings{
     pub fn load_default()-> GeneralSettings{
-        yaml_read("config/coefficients.yaml")
+        yaml_read("config/coefficients.yaml").expect("Error reading default settings")
     }
 }
 
@@ -108,7 +108,7 @@ pub struct MeanStrFields{
 
 impl MeanStrFields{
     pub fn load_default()  -> MeanStrFields{
-        MeanStrFields{str_fields: yaml_read("config/fields.yaml")}
+        MeanStrFields{str_fields: yaml_read("config/fields.yaml").expect("Error reading fields")}
     }
 }
 
@@ -164,12 +164,12 @@ where T: Deserialize<'a>
     data
 }
 
-pub fn yaml_read<T>(path: &str) -> T
+pub fn yaml_read<T>(path: &str) -> Result<T, String>
 where T: DeserializeOwned  
 {
-    let file = File::open(path).expect(&("Error opening ".to_owned() + path));
+    let file = File::open(path).map_err(|err| err.to_string())?;
     let reader = BufReader::new(file);
-    serde_yaml::from_reader(reader).expect(&("Error reading: ".to_owned() + path))
+    Ok(serde_yaml::from_reader(reader).map_err(|err| err.to_string())?)
 }
 
 #[ignore]

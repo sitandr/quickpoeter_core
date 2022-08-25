@@ -117,7 +117,7 @@ pub fn map_with_failures<'a, T, U, F, I>(iter: I, f: F) -> Result<Vec<U>, Vec<T>
 pub fn dist_arrays(v1: [f32;VECTOR_DIM], v2: [f32;VECTOR_DIM], single_pow: f32) -> f32{
 	let mut sum = 0.0;
 	for i in 0..VECTOR_DIM{
-		sum += (v1[i] - v2[i]).powf(single_pow);
+		sum += (v1[i] - v2[i]).abs().powf(single_pow);
 	}
 	sum
 }
