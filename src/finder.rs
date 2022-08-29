@@ -31,12 +31,19 @@ use std::collections::BinaryHeap;
 
 /// general info like what and how to find
 pub struct FindingInfo<'collector, 'finding>{
-	wc: &'collector WordCollector,
-	to_find: &'finding Word,
-	part_of_speech: Option<&'finding str>,
-	gs: &'finding GeneralSettings,
-	field: Option<&'finding MeanField>,
-	// all these refs need to live through all finding time
+	pub wc: &'collector WordCollector,
+	pub to_find: &'finding Word,
+	pub part_of_speech: Option<&'finding str>,
+	pub gs: &'finding GeneralSettings,
+	pub field: Option<&'finding MeanField>,
+	// all these refs need to live only through finding time
+	// except collector; collector should live through all the time distance result exists
+}
+
+impl<'collector: 'finding, 'finding> FindingInfo<'collector, 'finding>{
+	fn new(wc: &'collector WordCollector, to_find: &'finding Word, gs: &'finding GeneralSettings, field: Option<&'finding MeanField>) -> Self{
+		FindingInfo { wc, to_find, part_of_speech: wc.get_speech_part(&to_find.src), gs, field}
+	}
 }
 
 #[derive(Clone)]
@@ -310,38 +317,30 @@ impl WordCollector{
 
 	pub fn find_best(&self, to_find: &Word, ignore: Vec<&str>, top_n: u32, field: Option<&MeanField>, gs: &GeneralSettings) -> Vec<WordDistanceResult>{
 
-		let mut heap = BinaryHeap::new();
-		let mut max_d: NotNan<f32> = NotNan::new(f32::MAX).unwrap();
-		let mut c: u32 = 0;
+		let mut heap = TopNHeap::new(top_n as usize);
+		let info = FindingInfo::new(self, to_find, gs, field);
 
-		let mut collected = false;
-
-		let info = FindingInfo{wc: &self, part_of_speech: self.get_speech_part(&*to_find.src), to_find: to_find, gs, field};
-
-		for (w_index, wform_group) in self.word_form_groups.iter().enumerate(){
-			if ignore.contains(&&*wform_group.speech_part){
-				continue;
-			}
-			let res = WordDistanceResult::from_forms(w_index, &info);
-			if !collected{
-				c += 1;
+		if gs.stresses.k_strict_stress == f32::INFINITY{
+			// dbg!(self.words_with_same_stresses(to_find).map(|ind| format!("{}", &self.words[*ind])).collect_vec());
+			for word_index in self.words_with_same_stresses(to_find){
+				let word = &self.words[*word_index];
+				let mut res = WordDistanceResult::new(to_find, &word, gs);
+				let form_index = *self.get_forms_by_word_index(word_index).unwrap();
+				res.add_form_dists(&info, form_index, &self.word_form_groups[form_index]);
 				heap.push(res);
-				if c >= top_n{
-					collected = true;
-					max_d = heap.peek().unwrap().dist;
-				}
 			}
-			else{
-				if max_d > res.dist{
-					heap.pop(); // pops the word with the greatest distance!
-					heap.push(res);
-					max_d = heap.peek().unwrap().dist;
+		}
+		else{
+			for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
+				if ignore.contains(&&*wform.speech_part){
+					continue;
 				}
-				
+				let res = WordDistanceResult::from_forms(wform_index, &info);
+				heap.push(res);
 			}
 		}
 
-		heap.into_sorted_vec()
+		heap.heap.into_sorted_vec()
 	}
 
 	/// returns iterator of corresponding word indexes
@@ -360,38 +359,56 @@ impl WordCollector{
 	}
 
 	/// returns matching group from index of word inside
-	pub fn get_forms_by_word_index(&self, index: &usize) -> Option<&WordForms>{
-		self.index2group_index.get(index).map(|&i| &self.word_form_groups[i])
+	pub fn get_forms_by_word_index(&self, index: &usize) -> Option<&usize>{
+		self.index2group_index.get(index)
 	}
 
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
 		self.get_index(not_stressed).map(|&ind| &self.words[ind])
 	}
 
-	pub fn get_forms(&self, not_stressed: &str) -> Option<&WordForms>{
+	pub fn get_forms(&self, not_stressed: &str) -> Option<&usize>{
 		self.get_index(not_stressed).and_then(|ind| self.get_forms_by_word_index(ind))
 	}
 
 	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
-		self.get_forms(not_stressed).map(|wf| wf.meaning)
+		self.get_forms(not_stressed).map(|&i| self.word_form_groups[i].meaning)
 	}
 
 	pub fn get_speech_part(&self, not_stressed: &str) -> Option<&str>{
-		self.get_forms(not_stressed).map(|wf| &*wf.speech_part)
+		self.get_forms(not_stressed).map(|&i| &*self.word_form_groups[i].speech_part)
 	}
 
 }
 
-struct TopNHeap<T, U>
+struct TopNHeap<'collector>
 {
-	max_dist: U,
+	max_dist: NotNan<f32>,
 	collected: bool,
-	heap: BinaryHeap<T>,
+	top_n: usize,
+	heap: BinaryHeap<WordDistanceResult<'collector>>,
 }
 
-impl<T: Ord + From<T>, U> TopNHeap<T, U>{
-	fn add(&self){
+impl<'collector> TopNHeap<'collector>{
+	fn push(&mut self, res: WordDistanceResult<'collector>){
+		if !self.collected{
+			self.heap.push(res);
+			if self.heap.len() >= self.top_n{
+				self.collected = true;
+				self.max_dist = self.heap.peek().unwrap().dist;
+			}
+		}
+		else{
+			if self.max_dist > res.dist{
+				self.heap.pop(); // pops the word with the greatest distance!
+				self.heap.push(res);
+				self.max_dist = self.heap.peek().unwrap().dist;
+			}
+		}
+	}
 
+	fn new(top_n: usize) -> Self{
+		TopNHeap{max_dist: NotNan::new(f32::MAX).unwrap(), top_n, heap: BinaryHeap::new(), collected: false}
 	}
 }
 

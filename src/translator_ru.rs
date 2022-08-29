@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use crate::translator_struct::*;
-use crate::reader::StressSettings;
 /*use lazy_static::lazy_static;
 use regex::Regex;*/
 
@@ -95,17 +94,9 @@ impl Vowel {
 	pub const ALL: [char; 8] = ['а', 'о', 'э', 'и', 'ы', 'у', '!', '+'];
 }
 
-impl Voweable for Vowel{
-	// needs stress_settings -> doesn't belong to Phonable
-	fn accent_dist(&self, other: &Self, sett: &StressSettings) -> f32{
-		type A = Accent;
-		let k: f32 = match (self.accent, other.accent) {
-			(A::NoAccent, A::NoAccent) => 1.0,
-		    (A::NoAccent, A::Primary)|(A::Primary, A::NoAccent) => {return sett.bad_rythm},
-		    (A::NoAccent, A::Secondary)|(A::Secondary, A::NoAccent)|(A::Secondary, A::Secondary) => sett.k_not_strict_stress,
-		    (A::Primary, A::Primary)|(A::Primary, A::Secondary)|(A::Secondary, A::Primary) => sett.k_strict_stress
-		};
-		k * self.distance(other)
+impl Voweable for Vowel {
+	fn accent(&self) -> Accent {
+		self.accent
 	}
 }
 

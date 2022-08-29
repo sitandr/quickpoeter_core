@@ -35,9 +35,25 @@ pub trait Phonable{
 	fn contains_char(c: &char) -> bool;
 }
 
-pub trait Voweable{
-	fn accent_dist(&self, second: &Self, sett: &StressSettings) -> f32;
+pub trait Voweable: Phonable{
+	fn accent(&self) -> Accent;
+	fn accent_dist(&self, second: &Self, sett: &StressSettings, index: usize) -> f32{ // needs stress_settings -> doesn't belong to Phonable
+		type A = Accent;
+		let k: f32 = match (self.accent(), second.accent()) {
+			(A::NoAccent, A::NoAccent) => 1.0,
+		    (A::NoAccent, A::Primary)|(A::Primary, A::NoAccent) => {return sett.bad_rythm},
+		    (A::NoAccent, A::Secondary)|(A::Secondary, A::NoAccent)|(A::Secondary, A::Secondary) => sett.k_not_strict_stress,
+		    (A::Primary, A::Primary)|(A::Primary, A::Secondary)|(A::Secondary, A::Primary) => {
+				if sett.k_strict_stress == f32::INFINITY{
+					return 0.0;
+				}
+				return sett.k_strict_stress * self.distance(second)
+			}
+		};
+		k * self.distance(second) / (index as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending)
+	}
 }
+
 
 #[derive(Debug, Clone)]
 pub struct Word{
@@ -179,7 +195,7 @@ impl Word{
 		
 		for (i, (v1, v2)) in first_iter.zip(second_iterator).enumerate(){ // self is smaller
 			// dbg!(v1, v2, i, v1.accent_dist(v2, sett) / (i as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending));
-			dist += v1.accent_dist(v2, sett) / (i as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
+			dist += v1.accent_dist(v2, sett, i);
 		}
 		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight
 	}
