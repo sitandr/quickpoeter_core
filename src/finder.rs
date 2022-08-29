@@ -29,6 +29,15 @@ use serde::ser::SerializeStruct;
 use crate::meaner::MeanField;
 use std::collections::BinaryHeap;
 
+/// general info like what and how to find
+pub struct FindingInfo<'collector, 'finding>{
+	wc: &'collector WordCollector,
+	to_find: &'finding Word,
+	part_of_speech: Option<&'finding str>,
+	gs: &'finding GeneralSettings,
+	field: Option<&'finding MeanField>,
+	// all these refs need to live through all finding time
+}
 
 #[derive(Clone)]
 pub struct WordDistanceResult<'a>{
@@ -55,35 +64,39 @@ impl<'collector> WordDistanceResult<'collector>{
 			 meaning: 0.0, popularity: 0.0, unsymmetrical: 0.0, same_part: 0.0}
 	}
 
-	pub fn from_forms(to_find: &'_ Word, wc: &'collector WordCollector, forms_index: usize, gs: &'_ GeneralSettings, field: Option<&MeanField>) -> Self{
-		let forms = &wc.word_form_groups[forms_index];
-		let res = forms.range().map(|i| WordDistanceResult::new(to_find, &wc.words[i], gs)).min().unwrap();
-		res.add_meaning_dist(Some(forms.meaning), field, &gs.meaning)
-		.add_popularity_dist(forms_index, &gs.popularity)
-		.add_unsymmetrical_dist(&gs.unsymmetrical)
-		.add_speech_part_dist(wc.get_speech_part(&to_find.src), &*forms.speech_part, &gs.same_speech_part)
+	pub fn from_forms(forms_index: usize, info: &FindingInfo<'collector, '_>) -> Self{
+		let forms = &info.wc.word_form_groups[forms_index];
+		let mut res = forms.range().map(|i| WordDistanceResult::new(info.to_find, &info.wc.words[i], info.gs)).min().unwrap();
+		res.add_form_dists(info, forms_index, forms);
+		res
+	}
+
+	/// adding distances that need word forms object to be known
+	pub fn add_form_dists(&mut self, info: &FindingInfo, forms_index: usize, forms: &WordForms){
+		self.add_meaning_dist(Some(forms.meaning), info.field, &info.gs.meaning);
+		self.add_popularity_dist(forms_index, &info.gs.popularity);
+		self.add_unsymmetrical_dist(&info.gs.unsymmetrical);
+		self.add_speech_part_dist(info.part_of_speech, &*forms.speech_part, &info.gs.same_speech_part);
 	}
 
 	/// (adds *field distance* from meaning to self.dist, if both are not None)
 	/// is incorrect if casted twice
-	pub fn add_meaning_dist(mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings) -> Self{
+	pub fn add_meaning_dist(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings){
 		if let Some(field) = field{
 			if let Some(meaning) = meaning{
 				self.meaning = field.dist(meaning, sett) * sett.weight;
 				self.dist += self.meaning;
 			}
 		}
-		self
 	}
 
 	/// the same
-	pub fn add_popularity_dist(mut self, index: usize, sett: &PopularitySettings) -> Self{
+	pub fn add_popularity_dist(&mut self, index: usize, sett: &PopularitySettings){
 		self.popularity = sett.weight * (index as f32).powf(sett.pow);
 		self.dist += self.popularity;
-		self
 	}
 
-	pub fn add_unsymmetrical_dist(mut self, sett: &UnsymmetricalSettings) -> Self{
+	pub fn add_unsymmetrical_dist(&mut self, sett: &UnsymmetricalSettings){
 		let delta = self.word.get_phones_count() as f32 - sett.optimal_length;
 		if delta.is_sign_positive(){
 			self.unsymmetrical = sett.more_w * delta.powf(sett.more_pow);
@@ -92,12 +105,11 @@ impl<'collector> WordDistanceResult<'collector>{
 			self.unsymmetrical = sett.less_w * (-delta).powf(sett.less_pow) 
 		}
 		self.dist += self.unsymmetrical;
-		self
 	}
 
-	pub fn add_speech_part_dist(mut self, to_find_sp: Option<&str>, my_sp: &str, sett: &SamePartSpeechSettings) -> Self{
+	pub fn add_speech_part_dist(&mut self, to_find_sp: Option<&str>, my_sp: &str, sett: &SamePartSpeechSettings){
 		match to_find_sp{
-			None => self,
+			None => {},
 			Some(sp) => {
 				self.same_part = match (sp, my_sp) {
 					("г", "г") => sett.verb,
@@ -107,7 +119,6 @@ impl<'collector> WordDistanceResult<'collector>{
 					_ => 0.0 
 				};
 				self.dist += self.same_part;
-				self
 			}
 		}
 		
@@ -230,10 +241,11 @@ impl WordForms{
 }
 
 pub struct WordCollector{
-	pub words: Vec<Word>,
-	pub word_form_groups: Vec<WordForms>,
-	string2index: HashMap<UnsafeStrSaver,
-							(usize, usize)> // first is index of wordformgroup, second is absolute index of word in words
+	words: Vec<Word>,
+	word_form_groups: Vec<WordForms>,
+	string2index: HashMap<UnsafeStrSaver, usize>, // word string -> word index
+	index2group_index: HashMap<usize, usize>, // index of word -> index of wordgroup
+	stress_indexing: HashMap<(u8, usize), Vec<usize>> // (letter, letter_index) -> [matching word index] 
 }
 
 impl WordCollector{
@@ -241,8 +253,10 @@ impl WordCollector{
 		let mut words: Vec<Word> = vec![];
 		let mut word_form_groups: Vec<WordForms> = vec![];
 		let mut string2index = HashMap::new();
+		let mut index2group_index = HashMap::new();
+		let mut stress_indexing = HashMap::new();
 
-		for (name, meaning) in zip(i2w, meanings){
+		for (group_index, (name, meaning)) in zip(i2w, meanings).enumerate(){
 			
 			let data = zaliz.remove(&name).unwrap();
 			let mut all_data = data.split('+');
@@ -272,15 +286,20 @@ impl WordCollector{
 
 				base.push_str(e);
 				let w = Word::new(&base, is_adj);
-				// w.get_stresses(); // checks if all have actual stress
+
+				index2group_index.insert(words.len(), group_index);
+
+				let stress_info = w.get_primary_stress();
+				stress_indexing.entry(stress_info).or_insert(vec![words.len()]).push(words.len());
+				
 				words.push(w);
 			}
 		}
-		let mut wc = WordCollector{words, word_form_groups, string2index: HashMap::new()};
-		for (ind, wgroup) in wc.word_form_groups.iter().enumerate(){
+		let mut wc = WordCollector{words, word_form_groups, string2index: HashMap::new(), index2group_index, stress_indexing};
+		for wgroup in wc.word_form_groups.iter(){
 			for word_index in wgroup.range(){
 				let word_form = &wc.words[word_index];
-				string2index.insert(UnsafeStrSaver::new(&*word_form.src), (ind, word_index));
+				string2index.insert(UnsafeStrSaver::new(&*word_form.src), word_index);
 			}
 		}
 		wc.string2index = string2index;
@@ -289,7 +308,7 @@ impl WordCollector{
 
 
 
-	pub fn find_best<'a, 'b, 'c>(&'a self, to_find: &'b Word, ignore: Vec<&'c str>, top_n: u32, field: Option<&MeanField>, gs: &GeneralSettings) -> Vec<WordDistanceResult<'a>>{
+	pub fn find_best(&self, to_find: &Word, ignore: Vec<&str>, top_n: u32, field: Option<&MeanField>, gs: &GeneralSettings) -> Vec<WordDistanceResult>{
 
 		let mut heap = BinaryHeap::new();
 		let mut max_d: NotNan<f32> = NotNan::new(f32::MAX).unwrap();
@@ -297,11 +316,13 @@ impl WordCollector{
 
 		let mut collected = false;
 
+		let info = FindingInfo{wc: &self, part_of_speech: self.get_speech_part(&*to_find.src), to_find: to_find, gs, field};
+
 		for (w_index, wform_group) in self.word_form_groups.iter().enumerate(){
 			if ignore.contains(&&*wform_group.speech_part){
 				continue;
 			}
-			let res = WordDistanceResult::from_forms(to_find, &self, w_index, gs, field);
+			let res = WordDistanceResult::from_forms(w_index, &info);
 			if !collected{
 				c += 1;
 				heap.push(res);
@@ -323,21 +344,32 @@ impl WordCollector{
 		heap.into_sorted_vec()
 	}
 
+	/// returns iterator of corresponding word indexes
+	pub fn words_with_same_stresses(&self, word: &Word) -> impl Iterator<Item=&usize> + '_{
+		let stresses = word.get_all_stresses();
+		stresses.into_iter().map(|stress_info| &self.stress_indexing[&stress_info]).flatten()
+	}
+
 
 	pub fn load_default() -> Self{
 		crate::reader::load_default_word_collector()
 	}
 
-	pub fn get_index(&self, not_stressed: &str) -> Option<&(usize, usize)>{
+	pub fn get_index(&self, not_stressed: &str) -> Option<&usize>{
 		self.string2index.get(&UnsafeStrSaver::new(not_stressed))
 	}
 
+	/// returns matching group from index of word inside
+	pub fn get_forms_by_word_index(&self, index: &usize) -> Option<&WordForms>{
+		self.index2group_index.get(index).map(|&i| &self.word_form_groups[i])
+	}
+
 	pub fn get_word(&self, not_stressed: &str) -> Option<&Word>{
-		self.get_index(not_stressed).map(|(_, w_ind)| &self.words[*w_ind])
+		self.get_index(not_stressed).map(|&ind| &self.words[ind])
 	}
 
 	pub fn get_forms(&self, not_stressed: &str) -> Option<&WordForms>{
-		self.get_index(not_stressed).map(|(ind, _)| &self.word_form_groups[*ind])
+		self.get_index(not_stressed).and_then(|ind| self.get_forms_by_word_index(ind))
 	}
 
 	pub fn get_meaning(&self, not_stressed: &str) -> Option<[f32;VECTOR_DIM]>{
@@ -350,6 +382,18 @@ impl WordCollector{
 
 }
 
+struct TopNHeap<T, U>
+{
+	max_dist: U,
+	collected: bool,
+	heap: BinaryHeap<T>,
+}
+
+impl<T: Ord + From<T>, U> TopNHeap<T, U>{
+	fn add(&self){
+
+	}
+}
 
 #[cfg(test)]
 #[test]

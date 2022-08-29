@@ -1,6 +1,8 @@
 
 use std::fmt::Formatter;
 use std::fmt::Display;
+use itertools::Itertools;
+
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 
@@ -141,7 +143,7 @@ impl Word{
 	/// VCCVC => (4, 1), (1, 2), (0, 0)
 	/// CCVV => (4, 0), (3, 0), (0, 2)
 	/// IMPORTANT: indexes might be out of bounds if block len == 0
-	/// DON'T use .rev() to get back order — it will break the FnMut for filter_map
+	/// Not DoubleIterator — it will break the FnMut for filter_map
 	fn splitted_consonants_rev(& self) -> impl Iterator<Item = (usize, usize)> + '_
 	{
 		let mut len = 0;
@@ -263,6 +265,7 @@ impl Word{
 	/// Returns position of primary stress and vec of positions of secondary
 	/// **IMPORTANT!** Returns the number of *vowel* in letter notation (starting from 0).
 	/// It can't return absolute char just because it knows only about the sounds
+	/// (works correctly only with words with single primary and possible secondary stresses)
 	#[allow(dead_code)] 
 	pub fn get_stresses(&self) -> (usize, Option<usize>){
 		let mut primary = usize::MAX;
@@ -276,6 +279,27 @@ impl Word{
 		}
 		assert_ne!(primary, usize::MAX);
 		(primary, secondary)
+	}
+
+	/// returns letter and position from the END of PRIMARY stress
+	pub fn get_primary_stress(&self) -> (u8, usize){
+		for (ind, vowel) in self.vowels().rev().enumerate(){
+			match vowel.accent{
+				Accent::Primary => return (vowel.letter, ind),
+				_ => {}
+			}
+		}
+		unreachable!()
+	}
+
+	/// returns all stresses in word (useful if many possible, e.g. user input)
+	pub fn get_all_stresses(&self) -> Vec<(u8, usize)>{
+		self.vowels().rev().enumerate().filter_map(|(ind, vowel)|
+			match vowel.accent{
+				Accent::Primary|Accent::Secondary => Some((vowel.letter, ind)),
+				Accent::NoAccent => None
+			}
+		).collect_vec()
 	}
 }
 
