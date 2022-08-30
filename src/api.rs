@@ -42,6 +42,10 @@ pub struct Args {
     /// Number of selected best matches
     #[clap(short, long, value_parser, default_value_t=100)]
     pub top_n: u32,
+
+    /// Print all subdistances
+    #[clap(short, long, value_parser, default_value_t=false)]
+    pub debug: bool,
 }
 
 pub fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, String>{
@@ -99,10 +103,10 @@ pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<Stri
 }
 
 
-pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrFields, gs: &'_ GeneralSettings, args: Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
-    let field = get_field_by_key(wc, mf, args.field)?;
-    let rps = split_by_plus(args.rps);
-    let word = string2word(wc, args.to_find)?;
+pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrFields, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
+    let field = get_field_by_key(wc, mf, args.field.clone())?;
+    let rps = split_by_plus(args.rps.clone());
+    let word = string2word(wc, args.to_find.clone())?;
     let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, field.as_ref(), gs);
 
     Ok(words)

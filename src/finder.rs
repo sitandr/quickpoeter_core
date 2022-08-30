@@ -436,6 +436,14 @@ fn word_collect(){
 	println!("{:?}", wc.get_word("ударение").unwrap().get_stresses());
 	println!("Found stress in {:#?}", current.elapsed());
 
+	let current = Instant::now();
+	println!("{:?}", wc.find_best(&Word::new("пра'вда", false), vec![], 50, Some(&field), &gs));
+	println!("Found word in {:#?}", current.elapsed());
+
+	let current = Instant::now();
+	println!("{:?}", wc.find_best(&Word::new("лома'ть", false), vec![], 50, Some(&field), &gs));
+	println!("Found word in {:#?}", current.elapsed());
+
 	//use std::{thread, time::Duration};
 	//let mut wc = wc;
 

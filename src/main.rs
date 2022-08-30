@@ -19,7 +19,17 @@ fn main() {
     let wc = WordCollector::load_default();
     let mf = MeanStrFields::load_default();
     let gs = GeneralSettings::load_default();
-    let words = find_from_args(&wc, &mf, &gs, Args::parse());
-    println!("{:?}", words);
+    let a = Args::parse();
+    let words = find_from_args(&wc, &mf, &gs, &a);
+
+    if !a.debug{
+        match words.map(|v| v.iter().map(|r| &*r.word.src).collect::<Vec<&str>>()){
+            Ok(v) => println!("{:?}", v),
+            Err(s) => eprintln!("{}", s)
+        }
+    }
+    else{
+        println!("{:?}", words);
+    }
     
 }
