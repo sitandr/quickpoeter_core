@@ -14,11 +14,14 @@ edition = "2021"
 
 serde = { version = "1.0", features = ["derive"] }
 serde-pickle = "1"
-serde_yaml = "0.8"
+serde_yaml = "0.9.9"
 bincode = "*"
 half = { version = "2.0.0", features = ["serde"] }
-phf = { version = "0.10", features = ["macros"] }
+phf = { version = "0.11.1", features = ["macros"] }
 ordered-float = "3.0.0"
 itertools = "*"
 clap = { version = "3.2.8", features = ["derive", "suggestions"] }
 smallvec = "*"
+
+[features]
+edit_distances = []

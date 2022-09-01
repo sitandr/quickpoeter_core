@@ -3,6 +3,8 @@ use std::fmt::Formatter;
 use std::fmt::Display;
 use itertools::Itertools;
 
+use crate::reader::ConsonantDistanceSettings;
+use crate::reader::VowelDistanceSettings;
 use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 
@@ -30,12 +32,11 @@ enum Phone{
 }
 
 pub trait Phonable{
-	fn distance(&self, second: &Self) -> f32;
-	fn from_vec(v: &Vec<char>) -> Self;
 	fn contains_char(c: &char) -> bool;
 }
 
 pub trait Voweable: Phonable{
+	fn distance(&self, second: &Self, sett: &VowelDistanceSettings) -> f32;
 	fn accent(&self) -> Accent;
 	fn accent_dist(&self, second: &Self, sett: &StressSettings, index: usize) -> f32{ // needs stress_settings -> doesn't belong to Phonable
 		type A = Accent;
@@ -47,13 +48,17 @@ pub trait Voweable: Phonable{
 				if sett.k_strict_stress == f32::INFINITY{
 					return 0.0;
 				}
-				return sett.k_strict_stress * self.distance(second)
+				return sett.k_strict_stress * self.distance(second, &sett.distance)
 			}
 		};
-		k * self.distance(second) / (index as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending)
+		k * self.distance(second, &sett.distance) / (index as f32 + sett.shift_syll_ending).powf(sett.pow_syll_ending)
 	}
 }
 
+pub trait Consonantable: Phonable{
+	fn distance(&self, second: &Self, sett: &ConsonantDistanceSettings) -> f32;
+
+}
 
 #[derive(Debug, Clone)]
 pub struct Word{
@@ -219,7 +224,9 @@ impl Word{
                 k /= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 				let c1 = unwrap_enum!(&self.phones[cons_ind_1], Phone::Consonant(ref c) => c);
 				let c2 = unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
-                dist += c1.distance(&c2)/k;
+				
+                dist += c1.distance(&c2, &sett.distance)/k;
+
 				}
 				}
 			}
@@ -269,7 +276,6 @@ impl Word{
 			structure = 0.0;
 		}
 		else{
-
 			misc = first.measure_misc(second, &gs.misc);
 			vowel = first.measure_vowel_dist(second, &gs.stresses);
 			cons = first.measure_cons_dist(second, &gs.alliteration);

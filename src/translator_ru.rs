@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::translator_struct::*;
+use crate::{translator_struct::*, reader::{VowelDistanceSettings, ConsonantDistanceSettings}};
 /*use lazy_static::lazy_static;
 use regex::Regex;*/
 
@@ -27,9 +27,9 @@ macro_rules! J_MAP {
 const SOFTABLE: [char; 10] = ['с', 'х', 'ф', 'к', 'т', 'п', 'р', 'л', 'н', 'м'];
 const REMOVING_VOICE: [char; 6] = ['п', 'ф', 'к', 'т', 'ш', 'с'];
 
-//0        Т С   Ч
+//0      Ф Т С   Ч
 //1 РЛНМ П     Ш
-//2        К Х  Ф
+//2        К Х  
 const ALLITERATION: [(f32, f32); 12] = [
 	(0.0, 1.0), // р
 	(0.5, 1.0), // л
@@ -42,7 +42,7 @@ const ALLITERATION: [(f32, f32); 12] = [
 	(5.0, 2.0), // х
 	(6.0, 1.0), // ш
 	(8.0, 0.0), // ч
-	(8.0, 2.0)  // ф
+	(3.0, 0.0)  // ф
 ];
 /*
  о 
@@ -95,6 +95,24 @@ impl Vowel {
 }
 
 impl Voweable for Vowel {
+	fn distance(&self, other: &Self, sett: &VowelDistanceSettings) -> f32{
+		if self.letter == symbol_id!(+) || self.letter == symbol_id!(!) || other.letter == symbol_id!(+) || other.letter == symbol_id!(!){
+			return 1.0;
+		}
+		if cfg!(feature = "edit_distances"){
+			let (x1, y1) = sett.map[self.letter as usize];
+			let (x2, y2) = sett.map[other.letter as usize];
+
+			1.0_f32.min(((x1 - x2).abs().powf(sett.pow) + (y1 - y2).abs().powf(sett.pow))/sett.denominator)
+		}
+		else{
+			let (x1, y1) = ASSONANSES[self.letter as usize];
+			let (x2, y2) = ASSONANSES[other.letter as usize];
+
+			1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5))/30.0)
+		}
+	}
+
 	fn accent(&self) -> Accent {
 		self.accent
 	}
@@ -122,82 +140,46 @@ impl Consonant{
 }
 
 impl Phonable for Vowel{
-	fn distance(&self, other: &Self) -> f32{
-		if self.letter == symbol_id!(+) || self.letter == symbol_id!(!) || other.letter == symbol_id!(+) || other.letter == symbol_id!(!){
-			return 1.0;
-		}
-		let (x1, y1) = ASSONANSES[self.letter as usize];
-		let (x2, y2) = ASSONANSES[other.letter as usize];
-
-		let res: f32 = (((x1 - x2).abs().sqrt() + (y1 - y2).abs().sqrt()) as f32)/26.0;
-		res
-	}
-
-
-	fn from_vec(v: &Vec<char>) -> Self{
-		assert!(v.len() <= 2);// !!! IMPORTANT: FIXING DICT
-		let accent = {
-			if v.len() > 1{
-				match v[1]{
-				'\'' => Accent::Primary,
-				'`' => Accent::Secondary,
-				other => unreachable!("Bad identifier {}", other)
-				}
-			}
-			else{
-				Accent::NoAccent
-			}
-		};
-		let mut letter = v[0];
-
-		if letter == 'о' && v.len() == 1{ // безударная "о" становится "а"
-			letter = 'а';
-		}
-
-		Self{letter: find_u8(letter, Self::ALL.iter()), accent: accent}
-	}
 	fn contains_char(c: &char) -> bool{
 		Self::ALL.contains(c)
 	}
 }
 
 impl Phonable for Consonant{
-	fn distance(&self, other: &Self) -> f32{
+	fn contains_char(c: &char) -> bool{
+		Self::ALL.contains(c)
+	}
+}
+
+impl Consonantable for Consonant{
+	fn distance(&self, other: &Self, sett: &ConsonantDistanceSettings) -> f32{
 		if self.letter == other.letter{
 			return 0.0;
 		}
 		if self.letter != symbol_id!(й) && other.letter != symbol_id!(й){
-			let (x1, y1) = ALLITERATION[self.letter as usize];
-			let (x2, y2) = ALLITERATION[other.letter as usize];
-			let mut d: f32 = 0.0;
-			if self.voiced == other.voiced {d += 0.5}
-			if self.palatalized == other.palatalized {d += 0.5};
+			if cfg!(feature = "edit_distances"){
+				let (x1, y1) = sett.map[self.letter as usize];
+				let (x2, y2) = sett.map[other.letter as usize];
+				let mut d: f32 = 0.0;
+				if self.voiced == other.voiced {d += 0.5}
+				if self.palatalized == other.palatalized {d += 0.5};
 
-			((x1 - x2).powf(2.0) + (y1 - y2).powf(2.0) + d)/66.0
+				1.0_f32.min(((x1 - x2).abs().powf(sett.pow) + (y1 - y2).abs().powf(sett.pow) + d)/sett.denominator)
+			}
+			else{
+				let (x1, y1) = ALLITERATION[self.letter as usize];
+				let (x2, y2) = ALLITERATION[other.letter as usize];
+				let mut d: f32 = 0.0;
+				if self.voiced == other.voiced {d += 0.5}
+				if self.palatalized == other.palatalized {d += 0.5};
+
+				1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5) + d)/30.0)
+			}
 		}
 		else{
 			// й + …? — already checked they are not equal
 			1.0 
 		}
-	}
-
-	fn from_vec(v: &Vec<char>) -> Self{
-		assert!(v.len() <= 3);
-		let mut voiced = false;
-		let mut palatalized = false;
-
-		for i in 1..v.len(){
-			match v[i]{
-				'*' => {voiced = true},
-				'^' => {palatalized = true},
-				other => unreachable!("Bad identifier {}", other)
-			}
-		}
-		let v: Self = Self{letter: find_u8(v[0], Self::ALL.iter()), voiced: voiced, palatalized: palatalized};
-		v
-	}
-	fn contains_char(c: &char) -> bool{
-		Self::ALL.contains(c)
 	}
 }
 
@@ -402,43 +384,4 @@ fn testing(){
 	use std::mem;
 	dbg!(mem::size_of::<Vowel>());
 	dbg!(mem::size_of::<Consonant>());
-}
-
-#[cfg(test)]
-#[test]
-fn map_or_match_speed(){
-	use std::time::{Instant};
-	let current = Instant::now(); 
-	let r = 'ш';
-	let r2 = match r{
-		'р' => 0,
-		'л' => 1,
-		'н' => 2,
-		'м' => 3,
-		'п' => 4,
-		'т' => 5,
-		'к' => 6,
-		'с' => 7,
-		'х' => 8,
-		'ш' => 9,
-		'ч' => 10,
-		'ф' => 11,
-		_ => 100
-	};
-	println!("Matched in {:#?} seconds", current.elapsed());
-	println!("{:?}", r2);
-
-	/*
-	let current = Instant::now();
-	let r2 = range_match!(&*r.to_string(), а, б, в, ш, г, е);
-	println!("Macro in {:#?} seconds", current.elapsed());
-	*/
-
-	let current = Instant::now();
-	let r2 = find_u8(r, Consonant::ALL.iter());
-	println!("Found in {:#?} seconds", current.elapsed());
-
-
-
-	println!("{:?}", r2);
 }

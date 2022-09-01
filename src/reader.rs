@@ -20,6 +20,20 @@ pub struct MiscSettings{
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ConsonantDistanceSettings{
+    pub map: [(f32, f32);12],
+    pub pow: f32,
+    pub denominator: f32
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct VowelDistanceSettings{
+    pub map: [(f32, f32);6],
+    pub pow: f32,
+    pub denominator: f32
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StressSettings{
     pub k_not_strict_stress: f32,
     pub k_strict_stress: f32,
@@ -29,6 +43,19 @@ pub struct StressSettings{
     pub shift_syll_ending: f32,
     pub pow_syll_ending: f32,
     pub asympt_shift: f32,
+    pub distance: VowelDistanceSettings
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AlliterationSettings{
+    pub shift_coord: f32,
+    pub shift_syll_ending: f32,
+    pub pow_coord_delta: f32,
+    pub pow_syll_ending: f32,
+    pub weight: f32,
+    pub asympt: f32,
+    pub asympt_shift: f32,
+    pub distance: ConsonantDistanceSettings
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -41,16 +68,6 @@ pub struct ConsonantStructureSettings{
     pub asympt_shift: f32,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct AlliterationSettings{
-    pub shift_coord: f32,
-    pub shift_syll_ending: f32,
-    pub pow_coord_delta: f32,
-    pub pow_syll_ending: f32,
-    pub weight: f32,
-    pub asympt: f32,
-    pub asympt_shift: f32,
-}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MeaningSettings{
@@ -92,7 +109,7 @@ pub struct GeneralSettings{
     pub meaning: MeaningSettings,
     pub popularity: PopularitySettings,
     pub unsymmetrical: UnsymmetricalSettings,
-    pub same_speech_part: SamePartSpeechSettings
+    pub same_speech_part: SamePartSpeechSettings,
 }
 
 impl GeneralSettings{
