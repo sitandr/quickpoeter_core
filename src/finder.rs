@@ -27,7 +27,7 @@ use crate::reader::VECTOR_DIM;
 use ordered_float::NotNan;
 use serde::Serialize;
 use serde::ser::SerializeStruct;
-use crate::meaner::MeanField;
+use crate::meaner::MeanTheme;
 use std::collections::BinaryHeap;
 
 /// general info like what and how to find
@@ -36,14 +36,14 @@ pub struct FindingInfo<'collector, 'finding>{
 	pub to_find: &'finding Word,
 	pub part_of_speech: Option<&'finding str>,
 	pub gs: &'finding GeneralSettings,
-	pub field: Option<&'finding MeanField>,
+	pub theme: Option<&'finding MeanTheme>,
 	// all these refs need to live only through finding time
 	// except collector; collector should live through all the time distance result exists
 }
 
 impl<'collector: 'finding, 'finding> FindingInfo<'collector, 'finding>{
-	fn new(wc: &'collector WordCollector, to_find: &'finding Word, gs: &'finding GeneralSettings, field: Option<&'finding MeanField>) -> Self{
-		FindingInfo { wc, to_find, part_of_speech: wc.get_speech_part(&to_find.src), gs, field}
+	fn new(wc: &'collector WordCollector, to_find: &'finding Word, gs: &'finding GeneralSettings, theme: Option<&'finding MeanTheme>) -> Self{
+		FindingInfo { wc, to_find, part_of_speech: wc.get_speech_part(&to_find.src), gs, theme}
 	}
 }
 
@@ -97,18 +97,18 @@ impl<'collector> WordDistanceResult<'collector>{
 
 	/// adding distances that need word forms object to be known
 	pub fn add_form_dists(&mut self, info: &FindingInfo, forms_index: usize, forms: &WordForms){
-		self.add_meaning_dist(Some(forms.meaning), info.field, &info.gs.meaning);
+		self.add_meaning_dist(Some(forms.meaning), info.theme, &info.gs.meaning);
 		self.add_popularity_dist(forms_index, &info.gs.popularity);
 		self.add_unsymmetrical_dist(&info.gs.unsymmetrical);
 		self.add_speech_part_dist(info.part_of_speech, &*forms.speech_part, &info.gs.same_speech_part);
 	}
 
-	/// (adds *field distance* from meaning to self.dist, if both are not None)
+	/// (adds *theme distance* from meaning to self.dist, if both are not None)
 	/// is incorrect if casted twice
-	pub fn add_meaning_dist(&mut self, meaning: Option<[f32; VECTOR_DIM]>, field: Option<&MeanField>, sett: &MeaningSettings){
-		if let Some(field) = field{
+	pub fn add_meaning_dist(&mut self, meaning: Option<[f32; VECTOR_DIM]>, theme: Option<&MeanTheme>, sett: &MeaningSettings){
+		if let Some(theme) = theme{
 			if let Some(meaning) = meaning{
-				self.meaning = field.dist(meaning, sett) * sett.weight;
+				self.meaning = theme.dist(meaning, sett) * sett.weight;
 				self.dist += self.meaning;
 			}
 		}
@@ -332,10 +332,10 @@ impl WordCollector{
 
 
 
-	pub fn find_best(&self, to_find: &Word, ignore: Vec<&str>, top_n: u32, field: Option<&MeanField>, gs: &GeneralSettings) -> Vec<WordDistanceResult>{
+	pub fn find_best(&self, to_find: &Word, ignore: Vec<&str>, top_n: u32, theme: Option<&MeanTheme>, gs: &GeneralSettings) -> Vec<WordDistanceResult>{
 
 		let mut heap = TopNHeap::new(top_n as usize);
-		let info = FindingInfo::new(self, to_find, gs, field);
+		let info = FindingInfo::new(self, to_find, gs, theme);
 		let allowed = self.words_with_same_stresses(to_find).collect::<HashSet<usize>>();
 
 		for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
@@ -431,21 +431,21 @@ impl<'collector> TopNHeap<'collector>{
 #[cfg(test)]
 #[test]
 fn word_collect(){
-	use crate::reader::MeanStrFields;
+	use crate::reader::MeanStrThemes;
 	use std::time::Instant;
 	let current = Instant::now();
 	let wc = WordCollector::load_default();
-	let mf = MeanStrFields::load_default();
+	let mf = MeanStrThemes::load_default();
 	let gs = GeneralSettings::load_default();
 	println!("Loaded words in {:#?}", current.elapsed());
 
 	let current = Instant::now();
 	
 
-	let field = MeanField::from_str(&wc, &mf.str_fields["Love"]).expect("Can't find words");//&vec!["гиппопотам", "минотавр"]).unwrap();
+	let theme = MeanTheme::from_str(&wc, &mf.str_themes["Love"]).expect("Can't find words");//&vec!["гиппопотам", "минотавр"]).unwrap();
 
 
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&field), &gs));
+	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&theme), &gs));
 	println!("Found words in {:#?} seconds", current.elapsed());
 
 	let current = Instant::now();
@@ -453,11 +453,11 @@ fn word_collect(){
 	println!("Found stress in {:#?}", current.elapsed());
 
 	let current = Instant::now();
-	println!("{:?}", wc.find_best(&Word::new("пра'вда", false), vec![], 50, Some(&field), &gs));
+	println!("{:?}", wc.find_best(&Word::new("пра'вда", false), vec![], 50, Some(&theme), &gs));
 	println!("Found word in {:#?}", current.elapsed());
 
 	let current = Instant::now();
-	println!("{:?}", wc.find_best(&Word::new("лома'ть", false), vec![], 50, Some(&field), &gs));
+	println!("{:?}", wc.find_best(&Word::new("лома'ть", false), vec![], 50, Some(&theme), &gs));
 	println!("Found word in {:#?}", current.elapsed());
 
 	//use std::{thread, time::Duration};

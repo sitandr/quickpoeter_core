@@ -11,13 +11,13 @@ mod api;
 mod tests;
 
 use crate::finder::WordCollector;
-use crate::reader::MeanStrFields;
+use crate::reader::MeanStrThemes;
 use crate::reader::GeneralSettings;
 use crate::api::{Args, find_from_args};
 
 fn main() {
     let wc = WordCollector::load_default();
-    let mf = MeanStrFields::load_default();
+    let mf = MeanStrThemes::load_default();
     let gs = GeneralSettings::load_default();
     let a = Args::parse();
     let words = find_from_args(&wc, &mf, &gs, &a);

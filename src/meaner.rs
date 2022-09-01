@@ -3,14 +3,14 @@ use crate::reader::{VECTOR_DIM, MeaningSettings};
 use crate::finder::WordCollector;
 use ordered_float::NotNan;
 
-pub struct MeanField{
+pub struct MeanTheme{
 	average: [f32;VECTOR_DIM],
 	/// None if only one vect is present
 	sigmas: Option<[f32;VECTOR_DIM]> // "weights" to the difference between array and average 
 
 }
 
-impl MeanField{
+impl MeanTheme{
 	/// will panic if no vectors are provided
 	pub fn new(vectors: Vec<[f32;VECTOR_DIM]>) -> Self{
 		let n = vectors.len();
@@ -43,7 +43,7 @@ impl MeanField{
 			}
 		}
 
-		MeanField{average, sigmas: Some(sigma)}
+		MeanTheme{average, sigmas: Some(sigma)}
 	}
 
 	pub fn try_new(vectors: Vec<[f32;VECTOR_DIM]>) -> Option<Self>{
@@ -75,7 +75,7 @@ impl MeanField{
 	}
 
 	fn from_single(vector: [f32;VECTOR_DIM]) -> Self{
-		MeanField{average: vector, sigmas: None}
+		MeanTheme{average: vector, sigmas: None}
 	}
 
 	pub fn dist(&self, vector: [f32;VECTOR_DIM], sett: &MeaningSettings) -> f32{

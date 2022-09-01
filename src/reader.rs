@@ -119,13 +119,13 @@ impl GeneralSettings{
 }
 
 #[derive(Deserialize)]
-pub struct MeanStrFields{
-    pub str_fields: HashMap<String, Vec<String>>,
+pub struct MeanStrThemes{
+    pub str_themes: HashMap<String, Vec<String>>,
 }
 
-impl MeanStrFields{
-    pub fn load_default()  -> MeanStrFields{
-        MeanStrFields{str_fields: yaml_read("config/fields.yaml").expect("Error reading fields")}
+impl MeanStrThemes{
+    pub fn load_default()  -> MeanStrThemes{
+        MeanStrThemes{str_themes: yaml_read("config/themes.yaml").expect("Error reading themes")}
     }
 }
 
@@ -223,7 +223,7 @@ fn test_loading(){
 #[test]
 fn test_try_settings(){
     use crate::translator_struct::Word;
-    println!("{:?}", MeanStrFields::load_default().str_fields["Art"]);
+    println!("{:?}", MeanStrThemes::load_default().str_themes["Art"]);
     let gs = GeneralSettings::load_default();
     let w1 = Word::new("сло'во", false);
     let w2 = Word::new("сла'ва", false);

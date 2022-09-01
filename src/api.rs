@@ -1,6 +1,6 @@
 use crate::translator_struct::Word;
-use crate::meaner::MeanField;
-use crate::reader::{MeanStrFields, GeneralSettings};
+use crate::meaner::MeanTheme;
+use crate::reader::{MeanStrThemes, GeneralSettings};
 use crate::finder::{WordCollector, WordDistanceResult};
 use clap::Parser;
 use crate::translator_ru::Vowel;
@@ -14,9 +14,9 @@ pub struct Args {
     #[clap(value_parser)]
     pub to_find: String,
 
-    /// Mean field name
+    /// Mean theme name
     #[clap(short, long, value_parser)]
-    pub field: Option<String>,
+    pub theme: Option<String>,
 
     /// Remove some parts of speech
     /// List of available parts of speech (буквы везде русские):
@@ -91,28 +91,28 @@ pub fn split_by_plus(rps: Option<String>) -> Vec<String>{
 }
 
 
-pub fn get_field_by_key(wc: &WordCollector, mf: &MeanStrFields, key: Option<String>) -> Result<Option<MeanField>, String>{
+pub fn get_theme_by_key(wc: &WordCollector, mf: &MeanStrThemes, key: Option<String>) -> Result<Option<MeanTheme>, String>{
     
     key.map(|k| { // -> Result<MF, String>
-        let strings_or_err = mf.str_fields.get(&k);
+        let strings_or_err = mf.str_themes.get(&k);
         match strings_or_err {
-            Some(strings) => MeanField::from_str(wc, &strings).map_err(|vs| format!("{:?}", vs)),
-            None => Err(format!("Unknown field: {}", k).to_string()),
+            Some(strings) => MeanTheme::from_str(wc, &strings).map_err(|vs| format!("{:?}", vs)),
+            None => Err(format!("Unknown theme: {}", k).to_string()),
         }
     }).transpose()
 }
 
 
-pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrFields, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
-    let field = get_field_by_key(wc, mf, args.field.clone())?;
+pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrThemes, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
+    let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
     let rps = split_by_plus(args.rps.clone());
     let word = string2word(wc, args.to_find.clone())?;
-    let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, field.as_ref(), gs);
+    let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, theme.as_ref(), gs);
 
     Ok(words)
 }
 
 #[allow(dead_code)]
-pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, field: Option<&MeanField>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
-    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, field, gs)
+pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, theme: Option<&MeanTheme>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, theme, gs)
 }
