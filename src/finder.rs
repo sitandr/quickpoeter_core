@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 /// # Plan of optimization
 /// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
@@ -74,8 +75,24 @@ impl<'collector> WordDistanceResult<'collector>{
 	pub fn from_forms(forms_index: usize, info: &FindingInfo<'collector, '_>) -> Self{
 		let forms = &info.wc.word_form_groups[forms_index];
 		let mut res = forms.range().map(|i| WordDistanceResult::new(info.to_find, &info.wc.words[i], info.gs)).min().unwrap();
+		
 		res.add_form_dists(info, forms_index, forms);
 		res
+	}
+
+	pub fn from_froms_with_filter(forms_index: usize, info: &FindingInfo<'collector, '_>, allowed_word_indexes: &HashSet<usize>) -> Option<Self>{
+		let forms = &info.wc.word_form_groups[forms_index];
+
+		let mut res = forms.range().filter_map(|i| 
+				if allowed_word_indexes.contains(&i){
+					Some(WordDistanceResult::new(info.to_find, &info.wc.words[i], info.gs))
+				}
+				else{
+					None
+				}).min()?;
+		
+		res.add_form_dists(info, forms_index, forms);
+		Some(res)
 	}
 
 	/// adding distances that need word forms object to be known
@@ -252,7 +269,7 @@ pub struct WordCollector{
 	word_form_groups: Vec<WordForms>,
 	string2index: HashMap<UnsafeStrSaver, usize>, // word string -> word index
 	index2group_index: HashMap<usize, usize>, // index of word -> index of wordgroup
-	stress_indexing: HashMap<(u8, usize), Vec<usize>> // (letter, letter_index) -> [matching word index] 
+	stress_indexing: HashMap<(u8, usize), HashSet<usize>> // (letter, letter_index) -> [matching word index] 
 }
 
 impl WordCollector{
@@ -297,7 +314,7 @@ impl WordCollector{
 				index2group_index.insert(words.len(), group_index);
 
 				let stress_info = w.get_primary_stress();
-				stress_indexing.entry(stress_info).or_insert(vec![words.len()]).push(words.len());
+				stress_indexing.entry(stress_info).or_insert(HashSet::new()).insert(words.len());
 				
 				words.push(w);
 			}
@@ -319,34 +336,33 @@ impl WordCollector{
 
 		let mut heap = TopNHeap::new(top_n as usize);
 		let info = FindingInfo::new(self, to_find, gs, field);
+		let allowed = self.words_with_same_stresses(to_find).collect::<HashSet<usize>>();
 
-		if gs.stresses.k_strict_stress == f32::INFINITY{
-			// dbg!(self.words_with_same_stresses(to_find).map(|ind| format!("{}", &self.words[*ind])).collect_vec());
-			for word_index in self.words_with_same_stresses(to_find){
-				let word = &self.words[*word_index];
-				let mut res = WordDistanceResult::new(to_find, &word, gs);
-				let form_index = *self.get_forms_by_word_index(word_index).unwrap();
-				res.add_form_dists(&info, form_index, &self.word_form_groups[form_index]);
-				heap.push(res);
+		for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
+			if ignore.contains(&&*wform.speech_part){
+				continue;
 			}
-		}
-		else{
-			for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
-				if ignore.contains(&&*wform.speech_part){
-					continue;
-				}
+			if gs.stresses.k_strict_stress == f32::INFINITY{
+				let res = WordDistanceResult::from_froms_with_filter(wform_index, &info, &allowed);
+
+				if let Some(res) = res{
+					heap.push(res);
+				} 
+			}
+			else{
 				let res = WordDistanceResult::from_forms(wform_index, &info);
 				heap.push(res);
 			}
+			
 		}
 
 		heap.heap.into_sorted_vec()
 	}
 
 	/// returns iterator of corresponding word indexes
-	pub fn words_with_same_stresses(&self, word: &Word) -> impl Iterator<Item=&usize> + '_{
+	pub fn words_with_same_stresses(&self, word: &Word) -> impl Iterator<Item=usize> + '_{
 		let stresses = word.get_all_stresses();
-		stresses.into_iter().map(|stress_info| &self.stress_indexing[&stress_info]).flatten()
+		stresses.into_iter().map(|stress_info| &self.stress_indexing[&stress_info]).flatten().map(|x| *x)
 	}
 
 
