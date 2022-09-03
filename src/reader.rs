@@ -55,7 +55,8 @@ pub struct AlliterationSettings{
     pub weight: f32,
     pub asympt: f32,
     pub asympt_shift: f32,
-    pub distance: ConsonantDistanceSettings
+    pub permutations: f32,
+    pub distance: ConsonantDistanceSettings,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

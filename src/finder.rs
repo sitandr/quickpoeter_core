@@ -21,6 +21,7 @@ use crate::reader::MeaningSettings;
 use crate::reader::PopularitySettings;
 use crate::reader::SamePartSpeechSettings;
 use crate::reader::UnsymmetricalSettings;
+use crate::translator_ru::symbol_id;
 use std::collections::HashMap;
 use crate::translator_struct::Word;
 use crate::reader::VECTOR_DIM;
@@ -42,7 +43,7 @@ pub struct FindingInfo<'collector, 'finding>{
 }
 
 impl<'collector: 'finding, 'finding> FindingInfo<'collector, 'finding>{
-	fn new(wc: &'collector WordCollector, to_find: &'finding Word, gs: &'finding GeneralSettings, theme: Option<&'finding MeanTheme>) -> Self{
+	pub fn new(wc: &'collector WordCollector, to_find: &'finding Word, gs: &'finding GeneralSettings, theme: Option<&'finding MeanTheme>) -> Self{
 		FindingInfo { wc, to_find, part_of_speech: wc.get_speech_part(&to_find.src), gs, theme}
 	}
 }
@@ -76,10 +77,12 @@ impl<'collector> WordDistanceResult<'collector>{
 		let forms = &info.wc.word_form_groups[forms_index];
 		let mut res = forms.range().map(|i| WordDistanceResult::new(info.to_find, &info.wc.words[i], info.gs)).min().unwrap();
 		
-		res.add_form_dists(info, forms_index, forms);
+		res.add_form_dists(info, forms_index);
 		res
 	}
 
+	/// creates distance using only words that are presented in allowed_indexes
+	/// returns None if no words left
 	pub fn from_froms_with_filter(forms_index: usize, info: &FindingInfo<'collector, '_>, allowed_word_indexes: &HashSet<usize>) -> Option<Self>{
 		let forms = &info.wc.word_form_groups[forms_index];
 
@@ -91,12 +94,13 @@ impl<'collector> WordDistanceResult<'collector>{
 					None
 				}).min()?;
 		
-		res.add_form_dists(info, forms_index, forms);
+		res.add_form_dists(info, forms_index);
 		Some(res)
 	}
 
 	/// adding distances that need word forms object to be known
-	pub fn add_form_dists(&mut self, info: &FindingInfo, forms_index: usize, forms: &WordForms){
+	pub fn add_form_dists(&mut self, info: &FindingInfo, forms_index: usize){
+		let forms = &info.wc.word_form_groups[forms_index];
 		self.add_meaning_dist(Some(forms.meaning), info.theme, &info.gs.meaning);
 		self.add_popularity_dist(forms_index, &info.gs.popularity);
 		self.add_unsymmetrical_dist(&info.gs.unsymmetrical);
@@ -169,14 +173,14 @@ impl PartialEq for WordDistanceResult<'_> {
 
 impl Eq for WordDistanceResult<'_>{}
 
-fn round3(n: f32) -> f32{
-	f32::round(n*1_000.0)/1_000.0
+fn round3(n: f32) -> String{
+	format!("{:<6}", f32::round(n*1_000.0)/1_000.0)
 }
 
 impl Debug for WordDistanceResult<'_>{
 	fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-		write!(f, "{} — (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {}; sSP: {})", 
-			self.word, round3(self.misc), round3(self.vowel), round3(self.cons),
+		write!(f, "\n{:<13} — {} (msc:{}; vwl:{}, cns:{}; str: {}; mng: {}; pop: {}; uns: {}; sSP: {})", 
+			self.word.src, round3(self.dist.into_inner()), round3(self.misc), round3(self.vowel), round3(self.cons),
 			 round3(self.structure), round3(self.meaning), round3(self.popularity), round3(self.unsymmetrical), round3(self.same_part))
 	}
 }
@@ -332,17 +336,16 @@ impl WordCollector{
 
 
 
-	pub fn find_best(&self, to_find: &Word, ignore: Vec<&str>, top_n: u32, theme: Option<&MeanTheme>, gs: &GeneralSettings) -> Vec<WordDistanceResult>{
+	pub fn find_best<'c>(&'c self, info: &FindingInfo<'c, '_>, ignore: Vec<&str>, top_n: u32) -> Vec<WordDistanceResult>{
 
 		let mut heap = TopNHeap::new(top_n as usize);
-		let info = FindingInfo::new(self, to_find, gs, theme);
-		let allowed = self.words_with_same_stresses(to_find).collect::<HashSet<usize>>();
+		let allowed = self.words_with_same_stresses(info.to_find).collect::<HashSet<usize>>();
 
 		for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
 			if ignore.contains(&&*wform.speech_part){
 				continue;
 			}
-			if gs.stresses.k_strict_stress == f32::INFINITY{
+			if info.gs.stresses.k_strict_stress == f32::INFINITY{
 				let res = WordDistanceResult::from_froms_with_filter(wform_index, &info, &allowed);
 
 				if let Some(res) = res{
@@ -360,9 +363,18 @@ impl WordCollector{
 	}
 
 	/// returns iterator of corresponding word indexes
-	pub fn words_with_same_stresses(&self, word: &Word) -> impl Iterator<Item=usize> + '_{
+	pub fn words_with_same_stresses(&self, word: &Word) -> impl Iterator<Item = usize> + '_{
 		let stresses = word.get_all_stresses();
-		stresses.into_iter().map(|stress_info| &self.stress_indexing[&stress_info]).flatten().map(|x| *x)
+
+		stresses.into_iter().map(|stress_info: (u8, usize)|{
+			if stress_info.0 == symbol_id!(!){ // "universal" letter
+				self.stress_indexing.iter().filter(|(key, _)| key.1 == stress_info.1).map(|(_, v)| v)
+				.flatten().map(|x| *x).collect::<HashSet<usize>>()
+			}
+			else{
+				self.stress_indexing[&stress_info].clone()
+			}
+		}).flatten()
 	}
 
 
@@ -428,6 +440,7 @@ impl<'collector> TopNHeap<'collector>{
 	}
 }
 
+/// to stay at stable I use tests as benchmarks. Use them with `cargo test word_collect --release -- --nocapture`
 #[cfg(test)]
 #[test]
 fn word_collect(){
@@ -444,8 +457,7 @@ fn word_collect(){
 
 	let theme = MeanTheme::from_str(&wc, &mf.str_themes["Love"]).expect("Can't find words");//&vec!["гиппопотам", "минотавр"]).unwrap();
 
-
-	println!("{:?}", wc.find_best(&Word::new("глазу'нья", false), vec![], 50, Some(&theme), &gs));
+	println!("{:?}", wc.find_best(&FindingInfo::new(&wc, &Word::new("глазу'нья", false), &gs, Some(&theme)), vec![], 50));
 	println!("Found words in {:#?} seconds", current.elapsed());
 
 	let current = Instant::now();
@@ -453,11 +465,11 @@ fn word_collect(){
 	println!("Found stress in {:#?}", current.elapsed());
 
 	let current = Instant::now();
-	println!("{:?}", wc.find_best(&Word::new("пра'вда", false), vec![], 50, Some(&theme), &gs));
+	println!("{:?}", wc.find_best(&FindingInfo::new(&wc, &Word::new("пра'вда", false), &gs, Some(&theme)), vec![], 50));
 	println!("Found word in {:#?}", current.elapsed());
 
 	let current = Instant::now();
-	println!("{:?}", wc.find_best(&Word::new("лома'ть", false), vec![], 50, Some(&theme), &gs));
+	println!("{:?}", wc.find_best(&FindingInfo::new(&wc, &Word::new("лома'ть", false), &gs, Some(&theme)), vec![], 50));
 	println!("Found word in {:#?}", current.elapsed());
 
 	//use std::{thread, time::Duration};

@@ -57,7 +57,6 @@ pub trait Voweable: Phonable{
 
 pub trait Consonantable: Phonable{
 	fn distance(&self, second: &Self, sett: &ConsonantDistanceSettings) -> f32;
-
 }
 
 #[derive(Debug, Clone)]
@@ -209,29 +208,52 @@ impl Word{
 		let mut dist = 0.0;
 
 		// syll_index is index from the word end
-		for (syll_ind_1, (s_ind_1, len_1)) in self.splitted_consonants_rev().enumerate(){
-			for (syll_ind_2, (s_ind_2, len_2)) in other.splitted_consonants_rev().enumerate(){
-				
-				let sum_syl_len = (len_1 + len_2) as f32;
+		for (syll_ind_1, (s_ind_1, len_1)) in other.splitted_consonants_rev().enumerate(){ // iterating over first sylls
+			for cons_ind_1 in s_ind_1..s_ind_1 + len_1{ // over first letters
+				let c1 = unwrap_enum!(&other.phones[cons_ind_1], Phone::Consonant(ref c) => c);
 
-				for cons_ind_1 in s_ind_1..s_ind_1 + len_1{
-				for cons_ind_2 in s_ind_2..s_ind_2 + len_2{
+				let mut dist_min = f32::MAX; // let's consider only cases with any consonants in second word
 
-				let d1 = (syll_ind_1) as f32 + (cons_ind_1 - s_ind_1) as f32 /sum_syl_len;
-				let d2 = (syll_ind_2) as f32 + (cons_ind_2 - s_ind_2) as f32 /sum_syl_len;
+				for (syll_ind_2, (s_ind_2, len_2)) in self.splitted_consonants_rev().enumerate(){ // second sylls
+					let sum_syl_len = (len_1 + len_2) as f32;
+					for cons_ind_2 in s_ind_2..s_ind_2 + len_2{ // second letter
 
-                let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
-                k /= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
-				let c1 = unwrap_enum!(&self.phones[cons_ind_1], Phone::Consonant(ref c) => c);
-				let c2 = unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
-				
-                dist += c1.distance(&c2, &sett.distance)/k;
+						let d1 = (syll_ind_1) as f32 + (cons_ind_1 - s_ind_1) as f32 /sum_syl_len;
+						let d2 = (syll_ind_2) as f32 + (cons_ind_2 - s_ind_2) as f32 /sum_syl_len;
 
+						let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
+						k /= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
+						
+						let c2 = unwrap_enum!(&self.phones[cons_ind_2], Phone::Consonant(ref c) => c);
+						
+						let d = c1.distance(&c2, &sett.distance);
+						dist_min = f32::min(d, dist_min);
+						dist += d/k;
+					}
 				}
-				}
+
+				dist += dist_min * sett.permutations;
 			}
 		}
-		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight
+
+		for (s_ind_1, len_1) in self.splitted_consonants_rev(){ // iterating over first sylls
+			for cons_ind_1 in s_ind_1..s_ind_1 + len_1{ // over first letters
+				let c1 = unwrap_enum!(&self.phones[cons_ind_1], Phone::Consonant(ref c) => c);
+
+				let mut dist_min = f32::MAX; // let's consider only cases with any consonants in second word
+
+				for (s_ind_2, len_2) in other.splitted_consonants_rev(){ // second sylls
+					for cons_ind_2 in s_ind_2..s_ind_2 + len_2{ // second letter
+						let c2 = unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
+						let d = c1.distance(&c2, &sett.distance);
+						dist_min = f32::min(d, dist_min);
+					}
+				}
+				dist += dist_min * sett.permutations;
+			}
+		}
+
+		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight 
 	}
 
 	// TODO: ending is more important!

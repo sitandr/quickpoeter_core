@@ -1,7 +1,7 @@
 use crate::translator_struct::Word;
 use crate::meaner::MeanTheme;
 use crate::reader::{MeanStrThemes, GeneralSettings};
-use crate::finder::{WordCollector, WordDistanceResult};
+use crate::finder::{WordCollector, WordDistanceResult, FindingInfo};
 use clap::Parser;
 use crate::translator_ru::Vowel;
 use crate::translator_ru::J_VOWELS;
@@ -40,20 +40,23 @@ pub struct Args {
     pub rps: Option<String>,
 
     /// Number of selected best matches
-    #[clap(short, long, value_parser, default_value_t=100)]
+    #[clap(short='n', long, value_parser, default_value_t=100)]
     pub top_n: u32,
 
     /// Print all subdistances
     #[clap(short, long, value_parser, default_value_t=false)]
     pub debug: bool,
+
+    #[clap(short, long, value_parser)]
+    pub measure: Option<String>
 }
 
-pub fn string2word(wc: &WordCollector, mut to_find: String) -> Result<Word, String>{
+pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String>{
     if to_find.chars().all(|c| match c {'+'|'!' => true, _ => false}){
         Ok(Word::new_abstract(&to_find))
     }
     else{
-        to_find = to_find.to_lowercase();
+        let to_find = to_find.to_lowercase();
         if !to_find.contains('\''){
             let found = wc.get_word(&to_find);
             if let Some(founded_some) = found{
@@ -102,17 +105,34 @@ pub fn get_theme_by_key(wc: &WordCollector, mf: &MeanStrThemes, key: Option<Stri
     }).transpose()
 }
 
+/// debug function to get distances between two words
+/// don't use it for production purpose
+pub fn measure<'a>(wc: &'a WordCollector, mf: &'_ MeanStrThemes, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<String, String>{
+    let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
+    let word = string2word(wc, &args.to_find.clone())?;
+    let info = FindingInfo::new(wc, &word, &gs, theme.as_ref());
 
+    let measured_s = args.measure.as_ref().ok_or("No measure value")?;
+
+    let measured = string2word(wc, measured_s)?;
+    let mut r = WordDistanceResult::new(&word, &measured, &gs);
+    if let Some(i) = wc.get_forms(measured_s){
+        r.add_form_dists(&info, *i);
+    }
+        
+    Ok(serde_yaml::to_string(&r).or(Err("Error in yaml creating"))?)
+}
 pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrThemes, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<Vec<WordDistanceResult<'a>>, String>{
     let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
     let rps = split_by_plus(args.rps.clone());
-    let word = string2word(wc, args.to_find.clone())?;
-    let words = wc.find_best(&word, rps.iter().map(|s| &**s).collect(), args.top_n, theme.as_ref(), gs);
-
+    let word = string2word(wc, &args.to_find.clone())?;
+    let info = FindingInfo::new(wc, &word, &gs, theme.as_ref());
+    let words = wc.find_best(&info, rps.iter().map(|s| &**s).collect(), args.top_n);
     Ok(words)
 }
 
 #[allow(dead_code)]
 pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, theme: Option<&MeanTheme>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
-    wc.find_best(&to_find, rps.iter().map(|s| &**s).collect(), top_n, theme, gs)
+    let info = FindingInfo::new(wc, &to_find, &gs, theme);
+    wc.find_best(&info, rps.iter().map(|s| &**s).collect(), top_n)
 }
