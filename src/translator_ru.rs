@@ -59,6 +59,7 @@ const ASSONANSES: [(f32, f32); 6] = [
 	(3.0, 3.0) // у
 ];
 
+/// important symbols used in code
 macro_rules! symbol_id {
 	(!) => (6);
 	(+) => (7);
@@ -66,23 +67,6 @@ macro_rules! symbol_id {
 }
 
 pub(crate) use symbol_id;
-
-/* 
-// Maybe one day I will fix it to 
-macro_rules! range_match {
-	($x:expr, $($letter:ident),+) => {
-		{
-			enum Counter{
-				$($letter,)+
-			}
-			match $x{
-				$(stringify!($letter) => (Counter::$letter as u32),)+
-				_ => unreachable!()
-			}
-		}
-	};
-}
-*/
 
 #[derive(Clone)]
 pub struct Vowel{

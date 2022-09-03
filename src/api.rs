@@ -14,32 +14,32 @@ pub struct Args {
     #[clap(value_parser)]
     pub to_find: String,
 
-    /// Mean theme name
+    /// Mean theme name (one from config/themes.yaml)
     #[clap(short, long, value_parser)]
     pub theme: Option<String>,
 
-    /// Remove some parts of speech
-    /// List of available parts of speech (буквы везде русские):
+    /// Remove some parts of speech separated with "+"
+    /// List of available parts of speech:
     /// с      существительное
-    /// п      прилагательное
-    /// мс     местоимение-существительное
-    /// мс-п   местоименное-прилагательное
-    /// г      глагол
-    /// н      наречие
-    /// числ   числительное
-    /// числ-п счётное прилагательное
-    /// вводн  вводное слово
-    /// межд   межометие
-    /// предик предикатив
-    /// предл  предлог
-    /// союз   союз
-    /// сравн  сравнительная степень
-    /// част   частица
-    /// ?      куски фразеологизмов и т.п.
-    #[clap(short, long, value_parser)]
+    /// п      прилагательное  
+    /// мс     местоимение-существительное  
+    /// мс-п   местоименное-прилагательное  
+    /// г      глагол  
+    /// н      наречие  
+    /// числ   числительное  
+    /// числ-п счётное прилагательное  
+    /// вводн  вводное слово  
+    /// межд   межометие  
+    /// предик предикатив  
+    /// предл  предлог  
+    /// союз   союз  
+    /// сравн  сравнительная степень  
+    /// част   частица  
+    /// ?      куски фразеологизмов и т.п.  
+    #[clap(short, long, value_parser, verbatim_doc_comment)]
     pub rps: Option<String>,
 
-    /// Number of selected best matches
+    /// Number of returned best matches (doesn't affect speed)
     #[clap(short='n', long, value_parser, default_value_t=100)]
     pub top_n: u32,
 
@@ -47,6 +47,7 @@ pub struct Args {
     #[clap(short, long, value_parser, default_value_t=false)]
     pub debug: bool,
 
+    /// Measure distance to given word (primarly for debug purposes)
     #[clap(short, long, value_parser)]
     pub measure: Option<String>
 }
