@@ -43,6 +43,7 @@ pub struct StressSettings{
     pub shift_syll_ending: f32,
     pub pow_syll_ending: f32,
     pub asympt_shift: f32,
+    pub indexation: bool,
     pub distance: VowelDistanceSettings
 }
 

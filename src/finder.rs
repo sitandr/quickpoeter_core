@@ -345,7 +345,7 @@ impl WordCollector{
 			if ignore.contains(&&*wform.speech_part){
 				continue;
 			}
-			if info.gs.stresses.k_strict_stress == f32::INFINITY{
+			if info.gs.stresses.indexation{
 				let res = WordDistanceResult::from_froms_with_filter(wform_index, &info, &allowed);
 
 				if let Some(res) = res{
