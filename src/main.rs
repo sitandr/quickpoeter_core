@@ -38,9 +38,9 @@ use crate::reader::GeneralSettings;
 use crate::api::{Args, find_from_args};
 
 fn main() {
-    let wc = WordCollector::load_default();
-    let mf = MeanStrThemes::load_default();
-    let gs = GeneralSettings::load_default();
+    let wc = WordCollector::load_default(".");
+    let mf = MeanStrThemes::load_default(".");
+    let gs = GeneralSettings::load_default(".");
     let a = Args::parse();
     
 

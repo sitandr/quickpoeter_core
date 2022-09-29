@@ -385,7 +385,7 @@ impl Display for Word{
 #[cfg(test)]
 #[test]
 fn measure_struct(){
-	let gs = GeneralSettings::load_default();
+	let gs = GeneralSettings::load_default(".");
 	let w = Word::new("приве'т", false);
 	let w1 = Word::new("уже'", false);
 	let w2 = Word::new("мише'нь", false);

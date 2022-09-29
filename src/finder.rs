@@ -399,8 +399,8 @@ impl WordCollector{
 	}
 
 
-	pub fn load_default() -> Self{
-		crate::reader::load_default_word_collector()
+	pub fn load_default(dir: &str) -> Self{
+		crate::reader::load_default_word_collector(dir)
 	}
 
 	pub fn get_index(&self, not_stressed: &str) -> Option<&usize>{
@@ -468,9 +468,9 @@ fn word_collect(){
 	use crate::reader::MeanStrThemes;
 	use std::time::Instant;
 	let current = Instant::now();
-	let wc = WordCollector::load_default();
-	let mf = MeanStrThemes::load_default();
-	let gs = GeneralSettings::load_default();
+	let wc = WordCollector::load_default(".");
+	let mf = MeanStrThemes::load_default(".");
+	let gs = GeneralSettings::load_default(".");
 	println!("Loaded words in {:#?}", current.elapsed());
 
 	let current = Instant::now();
@@ -507,7 +507,7 @@ fn word_collect(){
 #[test]
 fn profile_load(){
 	use std::{thread, time::Duration};
-	let mut wc = WordCollector::load_default();
+	let mut wc = WordCollector::load_default(".");
 
 	
 	println!("Sleeping (basic)");

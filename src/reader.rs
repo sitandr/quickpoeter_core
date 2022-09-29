@@ -20,8 +20,6 @@ Module that imports dictionary and config files
 */
 
 
-// I shuld try using TAURI!
-
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fs::File;
@@ -137,8 +135,10 @@ pub struct GeneralSettings{
 }
 
 impl GeneralSettings{
-    pub fn load_default()-> GeneralSettings{
-        yaml_read("config/coefficients.yaml").expect("Error reading default settings")
+    pub fn load_default(dir: &str)-> GeneralSettings{
+        let mut dir = dir.to_string();
+        dir.push_str("/config/coefficients.yaml");
+        yaml_read(&dir).expect("Error reading default settings")
     }
 }
 
@@ -148,20 +148,27 @@ pub struct MeanStrThemes{
 }
 
 impl MeanStrThemes{
-    pub fn load_default()  -> MeanStrThemes{
-        MeanStrThemes{str_themes: yaml_read("config/themes.yaml").expect("Error reading themes")}
+    pub fn load_default(dir: &str)  -> MeanStrThemes{
+        let mut dir = dir.to_string();
+        dir.push_str("/config/themes.yaml");
+        MeanStrThemes{str_themes: yaml_read(&dir).expect("Error reading themes")}
     }
 }
 
-pub fn load_default_word_collector() -> WordCollector{
-    let i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
+pub fn load_default_word_collector(dir: &str) -> WordCollector{
+    let mut d = dir.to_string();
+    d.push_str("/res/r_index2word.pkl");
+    let i2w: Vec<String> = pickle_read(&d);
 
-//     let w2i = cloning_hash_from_list(i2w.clone());
-    let mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
-    let vects = bin_read16("res/r_vectors_16.bc");
+    let mut d = dir.to_string();
+    d.push_str("/res/r_min_zaliz.pkl");
 
-// Don't need it now
-//    let si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
+    let mz: HashMap<String, String> = pickle_read(&d);
+
+    let mut d = dir.to_string();
+    d.push_str("/res/r_vectors_16.bc");
+    let vects = bin_read16(&d);
+
     WordCollector::new(i2w, mz, vects)
 }
 
@@ -247,8 +254,8 @@ fn test_loading(){
 #[test]
 fn test_try_settings(){
     use crate::translator_struct::Word;
-    println!("{:?}", MeanStrThemes::load_default().str_themes["Art"]);
-    let gs = GeneralSettings::load_default();
+    println!("{:?}", MeanStrThemes::load_default(".").str_themes["Art"]);
+    let gs = GeneralSettings::load_default(".");
     let w1 = Word::new("сло'во", false);
     let w2 = Word::new("сла'ва", false);
     println!("слово-слава {:?}", w1.measure_distance(&w2, &gs));
