@@ -20,6 +20,7 @@ Module that imports dictionary and config files
 */
 
 
+use std::path::PathBuf;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::fs::File;
@@ -134,11 +135,21 @@ pub struct GeneralSettings{
     pub same_speech_part: SamePartSpeechSettings,
 }
 
+macro_rules! construct_path {
+    ($base: expr, $($dir: expr)*, $file: expr) => {
+        &{
+            let mut b = $base.clone();
+            $(b.push($dir);)*
+            b.push($file);
+            b
+        }
+    };
+}
+
 impl GeneralSettings{
-    pub fn load_default(dir: &str)-> GeneralSettings{
-        let mut dir = dir.to_string();
-        dir.push_str("/config/coefficients.yaml");
-        yaml_read(&dir).expect("Error reading default settings")
+    pub fn load_default(dir: &PathBuf)-> GeneralSettings{
+        yaml_read(construct_path!(dir, "config", "coefficients.yaml"))
+        .expect("Error reading default settings")
     }
 }
 
@@ -148,26 +159,19 @@ pub struct MeanStrThemes{
 }
 
 impl MeanStrThemes{
-    pub fn load_default(dir: &str)  -> MeanStrThemes{
-        let mut dir = dir.to_string();
-        dir.push_str("/config/themes.yaml");
-        MeanStrThemes{str_themes: yaml_read(&dir).expect("Error reading themes")}
+    pub fn load_default(dir: &PathBuf)  -> MeanStrThemes{
+        MeanStrThemes{str_themes: yaml_read(construct_path!(dir, "config", "themes.yaml"))
+            .expect("Error reading themes")}
     }
 }
 
-pub fn load_default_word_collector(dir: &str) -> WordCollector{
-    let mut d = dir.to_string();
-    d.push_str("/res/r_index2word.pkl");
-    let i2w: Vec<String> = pickle_read(&d);
+pub fn load_default_word_collector(dir: &PathBuf) -> WordCollector{
 
-    let mut d = dir.to_string();
-    d.push_str("/res/r_min_zaliz.pkl");
+    let i2w: Vec<String> = pickle_read(construct_path!(dir, "res", "r_index2word.pkl"));
 
-    let mz: HashMap<String, String> = pickle_read(&d);
+    let mz: HashMap<String, String> = pickle_read(construct_path!(dir, "res", "r_min_zaliz.pkl"));
 
-    let mut d = dir.to_string();
-    d.push_str("/res/r_vectors_16.bc");
-    let vects = bin_read16(&d);
+    let vects = bin_read16(construct_path!(dir, "res", "r_vectors_16.bc"));
 
     WordCollector::new(i2w, mz, vects)
 }
@@ -185,7 +189,7 @@ fn vec2arr<T: Debug, const N: usize>(arr: Vec<Vec<T>>) -> Vec<[T; N]> {
 
 // this can read standart f32 data
 #[allow(dead_code)]
-fn bin_read(path: &str) -> Vec<[f32;VECTOR_DIM]>{
+fn bin_read(path: &PathBuf) -> Vec<[f32;VECTOR_DIM]>{
     let f = BufReader::new(File::open(path).unwrap());
     let data: Vec<Vec<f32>> = bincode::deserialize_from(f).unwrap();
     vec2arr(data)
@@ -195,24 +199,24 @@ fn vec16_to_vec32(v: Vec<f16>) -> Vec<f32>{
     v.into_iter().map(f16::to_f32).collect()
 }
 
-fn bin_read16(path: &str) -> Vec<[f32;VECTOR_DIM]>{
+fn bin_read16(path: &PathBuf) -> Vec<[f32;VECTOR_DIM]>{
     let f = BufReader::new(File::open(path).unwrap());
     let data: Vec<Vec<f16>> = bincode::deserialize_from(f).unwrap();
     let data: Vec<Vec<f32>> = data.into_iter().map(vec16_to_vec32).collect();
     vec2arr(data)
 }
 
-pub fn pickle_read<'a, T>(path: &str) -> T
+pub fn pickle_read<'a, T>(path: &PathBuf) -> T
 where T: Deserialize<'a>
 {
-    let file = File::open(path).expect(&("Error opening ".to_owned() + path));
+    let file = File::open(path).expect(&*format!("Error opening {:?}", path));
     let reader = BufReader::new(file);
     let data: T = serde_pickle::from_reader(reader,
-        DeOptions::new()).expect(&("Error reading: ".to_owned() + path));
+        DeOptions::new()).expect(&*format!("Error reading {:?}", path));
     data
 }
 
-pub fn yaml_read<T>(path: &str) -> Result<T, String>
+pub fn yaml_read<T>(path: &PathBuf) -> Result<T, String>
 where T: DeserializeOwned  
 {
     let file = File::open(path).map_err(|err| err.to_string())?;
@@ -228,7 +232,7 @@ fn test_loading(){
     println!("Loading data, this will take a while…");
 
     let current = Instant::now(); 
-    let _i2w: Vec<String> = pickle_read("res/r_index2word.pkl");
+    let _i2w: Vec<String> = pickle_read(&PathBuf::from("res/r_index2word.pkl"));
     println!("Loaded words in {:#?} seconds", current.elapsed());
 
     /*let current = Instant::now(); 
@@ -238,12 +242,12 @@ fn test_loading(){
     // Generating value-ind costs 9 ms (6 ms without copying vec),
 
     let current = Instant::now(); 
-    let _mz: HashMap<String, String> = pickle_read("res/r_min_zaliz.pkl");
+    let _mz: HashMap<String, String> = pickle_read(&PathBuf::from("res/r_min_zaliz.pkl"));
     // let _si: HashMap<String, u32> = pickle_read("res/r_special_info.pkl");
     println!("Loaded dict in {:#?} seconds", current.elapsed());
 
     let _current = Instant::now();
-    let _vects: Vec<[f32;VECTOR_DIM]> = bin_read16("res/r_vectors_16.bc");
+    let _vects: Vec<[f32;VECTOR_DIM]> = bin_read16(&PathBuf::from("res/r_vectors_16.bc"));
     // for some reason, in the test it displays two times much time than in main code
     println!("Loaded meaning in {:#?} seconds", current.elapsed());
 }
@@ -254,8 +258,8 @@ fn test_loading(){
 #[test]
 fn test_try_settings(){
     use crate::translator_struct::Word;
-    println!("{:?}", MeanStrThemes::load_default(".").str_themes["Art"]);
-    let gs = GeneralSettings::load_default(".");
+    println!("{:?}", MeanStrThemes::load_default(&PathBuf::from(".")).str_themes["Art"]);
+    let gs = GeneralSettings::load_default(&PathBuf::from("."));
     let w1 = Word::new("сло'во", false);
     let w2 = Word::new("сла'ва", false);
     println!("слово-слава {:?}", w1.measure_distance(&w2, &gs));

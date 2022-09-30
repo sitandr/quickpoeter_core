@@ -20,6 +20,7 @@ Module that creates and measures single words
 */
 
 
+
 use std::fmt::Formatter;
 use std::fmt::Display;
 use itertools::Itertools;
@@ -385,7 +386,8 @@ impl Display for Word{
 #[cfg(test)]
 #[test]
 fn measure_struct(){
-	let gs = GeneralSettings::load_default(".");
+	use std::path::PathBuf;
+	let gs = GeneralSettings::load_default(&PathBuf::from("."));
 	let w = Word::new("приве'т", false);
 	let w1 = Word::new("уже'", false);
 	let w2 = Word::new("мише'нь", false);

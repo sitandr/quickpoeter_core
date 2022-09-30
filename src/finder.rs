@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Module that is responsible for keeping and finding the best words 
 */
 
+use std::path::PathBuf;
 use std::collections::HashSet;
 use std::fmt::Display;
 /// # Plan of optimization
@@ -399,7 +400,7 @@ impl WordCollector{
 	}
 
 
-	pub fn load_default(dir: &str) -> Self{
+	pub fn load_default(dir: &PathBuf) -> Self{
 		crate::reader::load_default_word_collector(dir)
 	}
 
@@ -468,9 +469,9 @@ fn word_collect(){
 	use crate::reader::MeanStrThemes;
 	use std::time::Instant;
 	let current = Instant::now();
-	let wc = WordCollector::load_default(".");
-	let mf = MeanStrThemes::load_default(".");
-	let gs = GeneralSettings::load_default(".");
+	let wc = WordCollector::load_default(&PathBuf::from("."));
+	let mf = MeanStrThemes::load_default(&PathBuf::from("."));
+	let gs = GeneralSettings::load_default(&PathBuf::from("."));
 	println!("Loaded words in {:#?}", current.elapsed());
 
 	let current = Instant::now();
@@ -507,7 +508,7 @@ fn word_collect(){
 #[test]
 fn profile_load(){
 	use std::{thread, time::Duration};
-	let mut wc = WordCollector::load_default(".");
+	let mut wc = WordCollector::load_default(&PathBuf::from("."));
 
 	
 	println!("Sleeping (basic)");

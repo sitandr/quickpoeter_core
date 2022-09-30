@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Module that works with cli (isn't included in library)
 */
 
+use std::path::PathBuf;
 use clap::Parser;
 
 mod translator_struct;
@@ -38,9 +39,9 @@ use crate::reader::GeneralSettings;
 use crate::api::{Args, find_from_args};
 
 fn main() {
-    let wc = WordCollector::load_default(".");
-    let mf = MeanStrThemes::load_default(".");
-    let gs = GeneralSettings::load_default(".");
+    let wc = WordCollector::load_default(&PathBuf::new());
+    let mf = MeanStrThemes::load_default(&PathBuf::new());
+    let gs = GeneralSettings::load_default(&PathBuf::new());
     let a = Args::parse();
     
 
