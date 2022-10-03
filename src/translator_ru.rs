@@ -115,7 +115,7 @@ impl Voweable for Vowel {
 			let (x1, y1) = ASSONANSES[self.letter as usize];
 			let (x2, y2) = ASSONANSES[other.letter as usize];
 
-			1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5))/30.0)
+			1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5))/3.0)
 		}
 	}
 
@@ -179,7 +179,7 @@ impl Consonantable for Consonant{
 				if self.voiced == other.voiced {d += 0.5}
 				if self.palatalized == other.palatalized {d += 0.5};
 
-				1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5) + d)/30.0)
+				1.0_f32.min(((x1 - x2).abs().powf(0.5) + (y1 - y2).abs().powf(0.5) + d)/3.0)
 			}
 		}
 		else{
