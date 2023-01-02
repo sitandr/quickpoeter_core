@@ -24,10 +24,12 @@ Module that creates and measures single words
 use std::fmt::Formatter;
 use std::fmt::Display;
 use itertools::Itertools;
+use regex::Regex;
 
 use crate::reader::ConsonantDistanceSettings;
 use crate::reader::VowelDistanceSettings;
-use crate::translator_ru::{Vowel, Consonant, transcript, symbol_id};
+use crate::translator_ru::ALL_VOWELS;
+use crate::translator_ru::{Vowel, Consonant, transcript};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 
 macro_rules! unwrap_enum {
@@ -87,9 +89,12 @@ pub struct Word{
 	phones: Vec<Phone>,
 	vowel_count: usize, // many counting use number of syll as param
 	pub src: String,
-	/// true means it has only abstract vowels, so we can skip
+
+	/// true means **all** letters are only "abstract" vowels, so we can skip
 	/// all cons metrics when measuring distance
-	pub only_stress_structure: bool
+	only_stress_structure: bool,
+	/// whether it is just a word without **any** syll matchers like "+" or "!"
+	only_real_letters: bool
 }
 
 impl Word{
@@ -98,16 +103,31 @@ impl Word{
 		let w = transcript(w, is_adj);
 		let mut phones = vec![];
 		let mut current: Phone = Phone::None; // we need to initialize somehow
+		let mut only_stress_structure = true;
+		let mut only_real_letters = true;
 
 		for l in w.chars(){
-			// stores tha type of new letter
+			// stores the type of new letter
 			let new_current = {
+				if l == '+' || l == '!'{
+					only_real_letters = false;
+				}
+				else{
+					only_stress_structure = false;
+				}
+
 				if Vowel::contains_char(&l){Phone::Vowel(Vowel{letter: find_u8(l, Vowel::ALL.iter()),
-					 											accent: Accent::NoAccent})}
+					 											accent: match l {
+																	'!' => Accent::Primary,
+																	_ => Accent::NoAccent
+																}
+															})}
 				
 				else if Consonant::contains_char(&l){Phone::Consonant(Consonant{letter: find_u8(l, Consonant::ALL.iter()),
 																				 voiced: false, palatalized: false})}
-				else {Phone::None} // some symbol
+				else {
+					Phone::None // modificator
+				} 
 			};
 
 			match new_current{
@@ -140,7 +160,7 @@ impl Word{
 			}
 		}
 		phones.push(current);
-		Self{phones, src, only_stress_structure: false, vowel_count: 0}.count_vowels()
+		Self{phones, src, only_stress_structure, only_real_letters, vowel_count: 0}.count_vowels()
 	}
 
 	fn count_vowels(mut self) -> Self{
@@ -155,16 +175,6 @@ impl Word{
 
 	pub fn get_phones_count(&self) -> usize{
 		return self.phones.len()
-	}
-
-	/// constructs new only_stress_structure word
-	pub fn new_abstract(w: &str) -> Self{
-		let phones = w.chars().map(|l| match l{
-			'+' => Vowel{letter: symbol_id!(+), accent: Accent::NoAccent},
-			'!' => Vowel{letter: symbol_id!(!), accent: Accent::Primary},
-			_ => unreachable!("Bad identifier, {}", l)
-		}).map(|stress| Phone::Vowel(stress)).collect();
-		Self{phones, src: w.to_string(), only_stress_structure: true, vowel_count: 0}.count_vowels()
 	}
 
 	fn has_cons_end(&self) -> bool{
@@ -319,13 +329,25 @@ impl Word{
 			cons = 0.0;
 			structure = 0.0;
 		}
-		else{
+		else {
 			misc = first.measure_misc(second, &gs.misc);
 			vowel = first.measure_vowel_dist(second, &gs.stresses);
 			cons = first.measure_cons_dist(second, &gs.alliteration);
 			structure = first.measure_struct_dist(second, &gs.consonant_structure);
 		}
 		(misc, vowel, cons, structure)
+	}
+
+	
+	pub fn get_regexp(&self) -> Result<Option<Regex>, String> {
+		if self.only_real_letters{
+			return Ok(None)
+		}
+		let vowels: String = ALL_VOWELS.iter().collect();
+		let block = format!("([^{v}]*[{v}][^{v}]*)", v=&vowels);
+		let s = &self.src.replace('+', &block);
+		let s = s.replace('!', &block);
+		Regex::new(&format!("^{}$", s)).map_err(|err| format!("{}", err)).map(|r| Some(r))
 	}
 
 	/// Returns position of primary stress and vec of positions of secondary
@@ -369,6 +391,7 @@ impl Word{
 	}
 }
 
+/// just finds index of element in an Iterator; panics if fails
 pub fn find_u8<'a, T, I>(elem: T, mut array: I) -> u8
 where I: Iterator<Item=&'a T>,
 T: 'a + Eq

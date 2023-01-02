@@ -31,7 +31,8 @@ use regex::Regex;*/
 
 const J_MARKERS: [char; 10] = ['а', 'о', 'э', 'и', 'ы', 'у', 'ь', 'ъ', '\'', '`']; // ' and ` mean there is a vowel before => marker
 
-pub const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
+const J_VOWELS: [char; 4] = ['е', 'ё', 'ю', 'я'];
+pub const ALL_VOWELS: [char; 10] = ['а', 'о', 'э', 'и', 'ы', 'у','е', 'ё', 'ю', 'я'];
 
 macro_rules! J_MAP {
 	($x:expr) => {
@@ -357,7 +358,7 @@ fn replace_g_in_adj(w: &mut Vec<char>){
 #[cfg(test)]
 #[test]
 fn j_replace_check(){
-	assert_eq!(transcript("а'", false), "а'");
+	assert_eq!(transcript("а'+", false), "а'+");
 	assert_eq!(transcript("Я", false), "йа");
 	assert_eq!(transcript("Митя Ляпин", false), "м^ит^а л^апин");
 	assert_eq!(transcript("Митя Льяпин", false), "м^ит^а л^йапин");

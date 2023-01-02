@@ -85,7 +85,9 @@ pub struct WordDistanceResult<'a>{
 }
 
 impl<'collector> WordDistanceResult<'collector>{
-	/// This function doesn't count meaning (but measures everything else). Use `from forms` to measure it or add "meaning fine" manually
+	/// This function doesn't count meaning and other dictionary-dependent things
+	/// (but measures everything "clean"). Use `from forms` to measure it or add "meaning fine" manually
+	/// P.S. `unsymmetrical` is also not measured there as it is not "clean" thing, it doesn't affect real dist
 	pub fn new<'c, 'a>(to_find: &'a Word, measured: &'collector Word, gs: &'c GeneralSettings) -> Self{
 
 		let (misc, vowel, cons, structure) = to_find.measure_distance(measured, gs);
@@ -358,21 +360,32 @@ impl WordCollector{
 
 
 
-	pub fn find_best<'c>(&'c self, info: &FindingInfo<'c, '_>, ignore: Vec<&str>, top_n: u32) -> Vec<WordDistanceResult>{
+	pub fn find_best<'c>(&'c self, info: &FindingInfo<'c, '_>, ignore: Vec<&str>, top_n: u32) -> Result<Vec<WordDistanceResult>, String>{
 
 		let mut heap = TopNHeap::new(top_n as usize);
-		let allowed = self.words_with_same_stresses(info.to_find).collect::<HashSet<usize>>();
+		let allowed = self.words_with_same_stresses(info.to_find);
+
+		let regexp = info.to_find.get_regexp()?;
+		let mut regexping = false;
+		let allowed = match regexp {
+			Some(reg) => {
+				regexping = true;
+				allowed.filter(|i| reg.is_match(&self.words[*i].src)).collect::<HashSet<usize>>()
+			},
+			None => {allowed.collect::<HashSet<usize>>()}
+		};
+
 
 		for (wform_index, wform) in self.word_form_groups.iter().enumerate(){
 			if ignore.contains(&&*wform.speech_part){
 				continue;
 			}
-			if info.gs.stresses.indexation{
+			if info.gs.stresses.indexation || regexping{
 				let res = WordDistanceResult::from_froms_with_filter(wform_index, &info, &allowed);
 
 				if let Some(res) = res{
 					heap.push(res);
-				} 
+				}
 			}
 			else{
 				let res = WordDistanceResult::from_forms(wform_index, &info);
@@ -381,7 +394,7 @@ impl WordCollector{
 			
 		}
 
-		heap.heap.into_sorted_vec()
+		Ok(heap.heap.into_sorted_vec())
 	}
 
 	/// returns iterator of corresponding word indexes

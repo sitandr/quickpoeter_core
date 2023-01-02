@@ -24,8 +24,7 @@ use crate::meaner::MeanTheme;
 use crate::reader::{MeanStrThemes, GeneralSettings};
 use crate::finder::{WordCollector, WordDistanceResult, FindingInfo};
 use clap::Parser;
-use crate::translator_ru::Vowel;
-use crate::translator_ru::J_VOWELS;
+use crate::translator_ru::ALL_VOWELS;
 
 /// Compex tool for finding ryphms;
 #[derive(Parser, Debug)]
@@ -75,11 +74,11 @@ pub struct Args {
 
 pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String>{
     if to_find.chars().all(|c| match c {'+'|'!' => true, _ => false}){
-        Ok(Word::new_abstract(&to_find))
+        Ok(Word::new(&to_find, false))
     }
     else{
         let to_find = to_find.to_lowercase();
-        if !to_find.contains('\''){
+        if !to_find.contains('\'') && !to_find.contains('!') {
             let found = wc.get_word(&to_find);
             if let Some(founded_some) = found{
                 Ok(founded_some.clone())
@@ -98,10 +97,11 @@ pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String>
                     'ё' => {},
                     '`'|'\'' => {
                         let previous_c = chrs.get(i - 1).ok_or("Stress symbol at start of the word".to_string())?;
-                        if !(Vowel::ALL.contains(previous_c)||J_VOWELS.contains(previous_c)){
+                        if !(ALL_VOWELS.contains(previous_c)){
                             return Err("Stress not after the vowel".to_owned());
                         }
                     },
+                    '+'|'!' => {}
                     _ => return Err(format!("Unknown charachter {}", c)),
                 }
             }
@@ -149,12 +149,12 @@ pub fn find_from_args<'a>(wc: &'a WordCollector, mf: &'_ MeanStrThemes, gs: &'_ 
     let rps = split_by_plus(args.rps.clone());
     let word = string2word(wc, &args.to_find.clone())?;
     let info = FindingInfo::new(wc, &word, &gs, theme.as_ref());
-    let words = wc.find_best(&info, rps.iter().map(|s| &**s).collect(), args.top_n);
+    let words = wc.find_best(&info, rps.iter().map(|s| &**s).collect(), args.top_n)?;
     Ok(words)
 }
 
 #[allow(dead_code)]
-pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, theme: Option<&MeanTheme>, rps: &Vec<String>, top_n: u32) -> Vec<WordDistanceResult<'a>>{
+pub fn find<'a>(wc: &'a WordCollector, gs: &'_ GeneralSettings, to_find: Word, theme: Option<&MeanTheme>, rps: &Vec<String>, top_n: u32) -> Result<Vec<WordDistanceResult<'a>>, String>{
     let info = FindingInfo::new(wc, &to_find, &gs, theme);
     wc.find_best(&info, rps.iter().map(|s| &**s).collect(), top_n)
 }
