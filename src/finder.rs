@@ -507,6 +507,10 @@ fn word_collect(){
 	println!("{:?}", wc.find_best(&FindingInfo::new(&wc, &Word::new("лома'ть", false), &gs, Some(&theme)), vec![], 50));
 	println!("Found word in {:#?}", current.elapsed());
 
+	let current = Instant::now();
+	println!("{:?}", wc.find_best(&FindingInfo::new(&wc, &Word::new("!кий", false), &gs, Some(&theme)), vec![], 50));
+	println!("Found word «!кий» in {:#?}", current.elapsed());
+
 	//use std::{thread, time::Duration};
 	//let mut wc = wc;
 
