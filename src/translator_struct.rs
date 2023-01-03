@@ -29,6 +29,7 @@ use regex::Regex;
 use crate::reader::ConsonantDistanceSettings;
 use crate::reader::VowelDistanceSettings;
 use crate::translator_ru::ALL_VOWELS;
+use crate::translator_ru::symbol_id;
 use crate::translator_ru::{Vowel, Consonant, transcript};
 use crate::reader::{GeneralSettings, MiscSettings, StressSettings, ConsonantStructureSettings, AlliterationSettings};
 
@@ -134,10 +135,12 @@ impl Word{
 				Phone::None => {
 					match current{
 						Phone::Vowel(ref mut v) => {
-							v.accent = match l{
-								'\'' => Accent::Primary,
-								'`' => Accent::Secondary,
-								other => unreachable!("Bad vowel identifier {}", other)
+							if v.letter != symbol_id!(+) && v.letter != symbol_id!(!){
+								v.accent = match l{
+									'\'' => Accent::Primary,
+									'`' => Accent::Secondary,
+									other => unreachable!("Bad vowel identifier {}", other)
+								}
 							}
 						},
 						Phone::Consonant(ref mut c) => {
@@ -254,7 +257,7 @@ impl Word{
 						let d2 = (syll_ind_2) as f32 + (cons_ind_2 - s_ind_2) as f32 /sum_syl_len;
 
 						let mut k  = ((d1 - d2).abs() +  sett.shift_coord).powf(sett.pow_coord_delta);
-						k /= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
+						k *= (d1 + d2 + sett.shift_syll_ending).powf(sett.pow_syll_ending);
 						
 						let c2 = unwrap_enum!(&self.phones[cons_ind_2], Phone::Consonant(ref c) => c);
 						

@@ -42,12 +42,15 @@ impl MeanTheme{
 		}
 		let mut average = [0.0; VECTOR_DIM];
 		let mut sigma = [0.0; VECTOR_DIM];
+		let mut norm = 0.0;
 
 		for j in 0..VECTOR_DIM{
 			for i in 0..n{
 				average[j] += vectors[i][j];
 			}
+
 			average[j] /= n as f32;
+			norm += (average[j] as f32).powf(2.0);
 
 			if n > 1{
 				for i in 0..n{
@@ -57,6 +60,11 @@ impl MeanTheme{
 				sigma[j] = sigma[j].sqrt();
 			}
 		}
+		norm = norm.sqrt();
+		for j in 0..VECTOR_DIM{
+			average[j] /= norm;
+		}
+
 
 		if n > 1{
 			let m = sigma.iter().map(|x| NotNan::new(*x).unwrap()).min().unwrap().into_inner();
@@ -105,7 +113,8 @@ impl MeanTheme{
 		if let Some(sigma) = self.sigmas{
 			let mut dist: f32 = 0.0;
 			for i in 0..VECTOR_DIM{
-				dist += ((vector[i] - self.average[i]).abs()).powf(sett.pow)/sigma[i]/10.0;
+				dist += ((vector[i] - self.average[i]).abs()).powf(sett.pow)/(sigma[i]);
+				//println!("{}", sigma[i]);
 			}
 			dist
 		}
