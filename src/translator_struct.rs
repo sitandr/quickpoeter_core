@@ -87,13 +87,13 @@ pub trait Consonantable: Phonable{
 pub struct Word{
 	// unlike python version, the letter order stays the same
 	phones: Vec<Phone>,
-	vowel_count: usize, // many counting use number of syll as param
+	vowel_count: usize, // many countings use number of sylls as param
 	pub src: String,
 
 	/// true means **all** letters are only "abstract" vowels, so we can skip
 	/// all cons metrics when measuring distance
 	only_stress_structure: bool,
-	/// whether it is just a word without **any** syll matchers like "+" or "!"
+	/// whether it is just a word without **any** syll matchers like "+" or "!" (is not a pattern)
 	only_real_letters: bool
 }
 
@@ -288,8 +288,6 @@ impl Word{
 		dist/(self.vowel_count as f32 + sett.asympt_shift).powf(sett.asympt)*sett.weight 
 	}
 
-	// TODO: ending is more important!
-	// (as with vowels)
 	pub fn measure_struct_dist(&self, other: &Self, sett: &ConsonantStructureSettings) -> f32{
 		let mut dist = 0.0;
 		
@@ -338,7 +336,8 @@ impl Word{
 		(misc, vowel, cons, structure)
 	}
 
-	
+	/// returns Some(Regexp) if the word is a pattern (e.g. +!ко)
+	/// otherwise returns None 
 	pub fn get_regexp(&self) -> Result<Option<Regex>, String> {
 		if self.only_real_letters{
 			return Ok(None)

@@ -237,6 +237,11 @@ impl Serialize for WordDistanceResult<'_>{
 	}
 }
 
+/// saves &str in "raw" form; 
+/// **CAUTION**: will be **undefined behaviour** if the string it refs to will be deleted
+/// I use it here to bypass a borrow checker — using it there *is safe* because I use it
+/// to reference Strings *in the same object* the Strings are stored
+/// All the fields are private, so it can't be deconstructed outside to cause UB.
 struct UnsafeStrSaver(*const u8, usize);
 
 impl UnsafeStrSaver{
@@ -359,7 +364,9 @@ impl WordCollector{
 	}
 
 
-
+	/// the actual finding work: filters words (bad stresses if indexing is enabled), then creates WordDistance objects for all filtered,
+	/// pushes them into heap, and returns best *n* results
+	/// *ignore* — will skip listed parts of speech  
 	pub fn find_best<'c>(&'c self, info: &FindingInfo<'c, '_>, ignore: Vec<&str>, top_n: u32) -> Result<Vec<WordDistanceResult>, String>{
 
 		let mut heap = TopNHeap::new(top_n as usize);
