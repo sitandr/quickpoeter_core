@@ -22,13 +22,6 @@ Module that is responsible for keeping and finding the best words
 use std::path::PathBuf;
 use std::collections::HashSet;
 use std::fmt::Display;
-/// # Plan of optimization
-/// 0. Structurize all stressed -> speed up up to ~100 times (loosing quality)
-/// 1. Structurize the endings -> speed up up to ~20 times
-/// 2. Multi-threading for finding -> 2-3 times
-/// 3. Directly reducing the time, e.g. replace phf hash with compile-time matches 
-/// 4. Replace String to &str in words (not sure will give a speed up)
-/// 5. Count meaner only one time -> ~ + 10%
 
 
 use std::fmt::Formatter;

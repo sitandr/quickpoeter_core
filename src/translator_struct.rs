@@ -91,9 +91,6 @@ pub struct Word{
 	vowel_count: usize, // many countings use number of sylls as param
 	pub src: String,
 
-	/// true means **all** letters are only "abstract" vowels, so we can skip
-	/// all cons metrics when measuring distance
-	only_stress_structure: bool,
 	/// whether it is just a word without **any** syll matchers like "+" or "!" (is not a pattern)
 	only_real_letters: bool
 }
@@ -104,7 +101,6 @@ impl Word{
 		let w = transcript(w, is_adj);
 		let mut phones = vec![];
 		let mut current: Phone = Phone::None; // we need to initialize somehow
-		let mut only_stress_structure = true;
 		let mut only_real_letters = true;
 
 		for l in w.chars(){
@@ -112,9 +108,6 @@ impl Word{
 			let new_current = {
 				if l == '+' || l == '!'{
 					only_real_letters = false;
-				}
-				else{
-					only_stress_structure = false;
 				}
 
 				if Vowel::contains_char(&l){Phone::Vowel(Vowel{letter: find_u8(l, Vowel::ALL.iter()),
@@ -163,7 +156,7 @@ impl Word{
 			}
 		}
 		phones.push(current);
-		Self{phones, src, only_stress_structure, only_real_letters, vowel_count: 0}.count_vowels()
+		Self{phones, src, only_real_letters, vowel_count: 0}.count_vowels()
 	}
 
 	fn count_vowels(mut self) -> Self{
@@ -318,7 +311,13 @@ impl Word{
 		let cons;
 		let structure;
 
-		if first.only_stress_structure || second.only_stress_structure{
+		if first.only_real_letters && second.only_real_letters{
+			misc = first.measure_misc(second, &gs.misc);
+			vowel = first.measure_vowel_dist(second, &gs.stresses);
+			cons = first.measure_cons_dist(second, &gs.alliteration);
+			structure = first.measure_struct_dist(second, &gs.consonant_structure);
+		}
+		else {
 			vowel = first.measure_vowel_dist(second, &gs.stresses);
 
 			if second.vowel_count != first.vowel_count{
@@ -330,17 +329,12 @@ impl Word{
 			cons = 0.0;
 			structure = 0.0;
 		}
-		else {
-			misc = first.measure_misc(second, &gs.misc);
-			vowel = first.measure_vowel_dist(second, &gs.stresses);
-			cons = first.measure_cons_dist(second, &gs.alliteration);
-			structure = first.measure_struct_dist(second, &gs.consonant_structure);
-		}
 		(misc, vowel, cons, structure)
 	}
 
 	/// returns Some(Regexp) if the word is a pattern (e.g. +!ко)
 	/// otherwise returns None 
+	/// Error if fails to create Regexp (e.g. incorrect syntax inside the word)
 	pub fn get_regexp(&self) -> Result<Option<Regex>, String> {
 		if self.only_real_letters{
 			return Ok(None)

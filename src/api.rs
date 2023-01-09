@@ -128,7 +128,7 @@ pub fn get_theme_by_key(wc: &WordCollector, mf: &MeanStrThemes, key: Option<Stri
 }
 
 /// debug function to get distances between two words
-/// don't use it for production purpose
+/// don't use it for production purpose (it is rather slow)
 pub fn measure<'a>(wc: &'a WordCollector, mf: &'_ MeanStrThemes, gs: &'_ GeneralSettings, args: &'_ Args) -> Result<String, String>{
     let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
     let word = string2word(wc, &args.to_find.clone())?;
