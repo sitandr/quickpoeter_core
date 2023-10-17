@@ -19,51 +19,51 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Module that works with cli (isn't included in library)
 */
 
-use std::path::PathBuf;
 use clap::Parser;
+use std::path::PathBuf;
 
-mod translator_struct;
-mod translator_ru;
-mod finder;
-mod reader;
-mod meaner;
 mod api;
+mod finder;
+mod meaner;
+mod reader;
+mod translator_ru;
+mod translator_struct;
 
 #[cfg(test)]
 mod tests;
 
 use crate::api::measure;
+use crate::api::{find_from_args, Args};
 use crate::finder::WordCollector;
-use crate::reader::MeanStrThemes;
 use crate::reader::GeneralSettings;
-use crate::api::{Args, find_from_args};
+use crate::reader::MeanStrThemes;
 
 fn main() {
     let wc = WordCollector::load_default(&PathBuf::new());
     let mf = MeanStrThemes::load_default(&PathBuf::new());
     let gs = GeneralSettings::load_default(&PathBuf::new());
     let a = Args::parse();
-    
 
-    if a.measure.is_some(){
+    if a.measure.is_some() {
         let r = measure(&wc, &mf, &gs, &a);
-        println!("{}", match  r{
-            Ok(r) => r,
-            Err(r) => r
-        });
+        println!(
+            "{}",
+            match r {
+                Ok(r) => r,
+                Err(r) => r,
+            }
+        );
         return;
     }
 
     let words = find_from_args(&wc, &mf, &gs, &a);
 
-    if a.debug{
+    if a.debug {
         println!("{:?}", words);
-    }
-    else{
-        match words.map(|v| v.iter().map(|r| &*r.word.src).collect::<Vec<&str>>()){
+    } else {
+        match words.map(|v| v.iter().map(|r| &*r.word.src).collect::<Vec<&str>>()) {
             Ok(v) => println!("{:?}", v),
-            Err(s) => eprintln!("{}", s)
+            Err(s) => eprintln!("{}", s),
         }
     }
-    
 }
