@@ -382,9 +382,9 @@ fn replace_g_in_adj(w: &mut Vec<char>) {
         return;
     }
     if w[w.len() - 3..w.len()] == ['е', 'г', 'о'] {
-        w.splice(w.len() - 3..w.len(), ['е', 'в', 'о'].into_iter());
+        w.splice(w.len() - 3..w.len(), ['е', 'в', 'о']);
     } else if w[w.len() - 3..w.len()] == ['о', 'г', 'о'] {
-        w.splice(w.len() - 3..w.len(), ['о', 'в', 'о'].into_iter());
+        w.splice(w.len() - 3..w.len(), ['о', 'в', 'о']);
     }
 }
 

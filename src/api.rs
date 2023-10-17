@@ -77,7 +77,7 @@ pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String>
         '+' | '!' => true,
         _ => false,
     }) {
-        Ok(Word::new(&to_find, false))
+        Ok(Word::new(to_find, false))
     } else {
         let to_find = to_find.to_lowercase();
         if !to_find.contains('\'') && !to_find.contains('!') {
@@ -114,7 +114,7 @@ pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String>
 }
 
 pub fn split_by_plus(rps: Option<String>) -> Vec<String> {
-    rps.map_or(vec![], |s| s.split("+").map(|x| x.to_owned()).collect())
+    rps.map_or(vec![], |s| s.split('+').map(|x| x.to_owned()).collect())
 }
 
 pub fn get_theme_by_key(
@@ -126,7 +126,7 @@ pub fn get_theme_by_key(
         // -> Result<MF, String>
         let strings_or_err = mf.str_themes.get(&k);
         match strings_or_err {
-            Some(strings) => MeanTheme::from_str(wc, &strings).map_err(|vs| format!("{:?}", vs)),
+            Some(strings) => MeanTheme::from_str(wc, strings).map_err(|vs| format!("{:?}", vs)),
             None => Err(format!("Unknown theme: {}", k).to_string()),
         }
     })
@@ -135,20 +135,20 @@ pub fn get_theme_by_key(
 
 /// debug function to get distances between two words
 /// don't use it for production purpose (it is rather slow)
-pub fn measure<'a>(
-    wc: &'a WordCollector,
+pub fn measure(
+    wc: &WordCollector,
     mf: &'_ MeanStrThemes,
     gs: &'_ GeneralSettings,
     args: &'_ Args,
 ) -> Result<String, String> {
     let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
     let word = string2word(wc, &args.to_find.clone())?;
-    let info = FindingInfo::new(wc, &word, &gs, theme.as_ref());
+    let info = FindingInfo::new(wc, &word, gs, theme.as_ref());
 
     let measured_s = args.measure.as_ref().ok_or("No measure value")?;
 
     let measured = string2word(wc, measured_s)?;
-    let mut r = WordDistanceResult::new(&word, &measured, &gs);
+    let mut r = WordDistanceResult::new(&word, &measured, gs);
     if let Some(i) = wc.get_forms(measured_s) {
         r.add_form_dists(&info, *i);
     }
@@ -164,7 +164,7 @@ pub fn find_from_args<'a>(
     let theme = get_theme_by_key(wc, mf, args.theme.clone())?;
     let rps = split_by_plus(args.rps.clone());
     let word = string2word(wc, &args.to_find.clone())?;
-    let info = FindingInfo::new(wc, &word, &gs, theme.as_ref());
+    let info = FindingInfo::new(wc, &word, gs, theme.as_ref());
     let words = wc.find_best(&info, rps.iter().map(|s| &**s).collect(), args.top_n)?;
     Ok(words)
 }
@@ -178,6 +178,6 @@ pub fn find<'a>(
     rps: &Vec<String>,
     top_n: u32,
 ) -> Result<Vec<WordDistanceResult<'a>>, String> {
-    let info = FindingInfo::new(wc, &to_find, &gs, theme);
+    let info = FindingInfo::new(wc, &to_find, gs, theme);
     wc.find_best(&info, rps.iter().map(|s| &**s).collect(), top_n)
 }

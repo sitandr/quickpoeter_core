@@ -101,7 +101,7 @@ pub struct Word {
 
 impl Word {
     pub fn new(w: &str, is_adj: bool) -> Self {
-        let src = w.replace("'", "").replace("`", "");
+        let src = w.replace(['\'', '`'], "");
         let w = transcript(w, is_adj);
         let mut phones = vec![];
         let mut current: Phone = Phone::None; // we need to initialize somehow
@@ -177,11 +177,11 @@ impl Word {
 
     #[allow(dead_code)]
     pub fn get_vowel_count(&self) -> usize {
-        return self.vowel_count;
+        self.vowel_count
     }
 
     pub fn get_phones_count(&self) -> usize {
-        return self.phones.len();
+        self.phones.len()
     }
 
     fn has_cons_end(&self) -> bool {
@@ -284,7 +284,7 @@ impl Word {
                         let c2 =
                             unwrap_enum!(&self.phones[cons_ind_2], Phone::Consonant(ref c) => c);
 
-                        let d = c1.distance(&c2, &sett.distance);
+                        let d = c1.distance(c2, &sett.distance);
                         dist_min = f32::min(d, dist_min);
                         dist += d / k;
                     }
@@ -308,7 +308,7 @@ impl Word {
                         // second letter
                         let c2 =
                             unwrap_enum!(&other.phones[cons_ind_2], Phone::Consonant(ref c) => c);
-                        let d = c1.distance(&c2, &sett.distance);
+                        let d = c1.distance(c2, &sett.distance);
                         dist_min = f32::min(d, dist_min);
                     }
                 }
@@ -384,7 +384,7 @@ impl Word {
         let s = s.replace('!', &block);
         Regex::new(&format!("^{}$", s))
             .map_err(|err| format!("{}", err))
-            .map(|r| Some(r))
+            .map(Some)
     }
 
     /// Returns position of primary stress and vec of positions of secondary

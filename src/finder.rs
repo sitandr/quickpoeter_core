@@ -101,7 +101,7 @@ impl<'collector> WordDistanceResult<'collector> {
         let dist = NotNan::new(misc + vowel + cons + structure).unwrap();
         WordDistanceResult {
             dist,
-            word: &measured,
+            word: measured,
             misc,
             vowel,
             cons,
@@ -161,7 +161,7 @@ impl<'collector> WordDistanceResult<'collector> {
         self.add_unsymmetrical_dist(&info.gs.unsymmetrical);
         self.add_speech_part_dist(
             info.part_of_speech,
-            &*forms.speech_part,
+            &forms.speech_part,
             &info.gs.same_speech_part,
         );
     }
@@ -394,7 +394,7 @@ impl WordCollector {
             for mut e in endings.into_iter() {
                 let mut e2 = e.to_string();
                 let mut base = match e.chars().next() {
-                    Some(c) if c.is_digit(10) => {
+                    Some(c) if c.is_ascii_digit() => {
                         e2.remove(0);
                         e = &e2;
                         bases[c.to_digit(10).unwrap() as usize]
@@ -427,7 +427,7 @@ impl WordCollector {
         for wgroup in wc.word_form_groups.iter() {
             for word_index in wgroup.range() {
                 let word_form = &wc.words[word_index];
-                string2index.insert(UnsafeStrSaver::new(&*word_form.src), word_index);
+                string2index.insert(UnsafeStrSaver::new(&word_form.src), word_index);
             }
         }
         wc.string2index = string2index;
@@ -463,13 +463,13 @@ impl WordCollector {
                 continue;
             }
             if info.gs.stresses.indexation || regexping {
-                let res = WordDistanceResult::from_froms_with_filter(wform_index, &info, &allowed);
+                let res = WordDistanceResult::from_froms_with_filter(wform_index, info, &allowed);
 
                 if let Some(res) = res {
                     heap.push(res);
                 }
             } else {
-                let res = WordDistanceResult::from_forms(wform_index, &info);
+                let res = WordDistanceResult::from_forms(wform_index, info);
                 heap.push(res);
             }
         }
@@ -483,21 +483,18 @@ impl WordCollector {
 
         stresses
             .into_iter()
-            .map(|stress_info: (u8, usize)| {
+            .flat_map(|stress_info: (u8, usize)| {
                 if stress_info.0 == symbol_id!(!) {
                     // "universal" letter
                     self.stress_indexing
                         .iter()
                         .filter(|(key, _)| key.1 == stress_info.1)
-                        .map(|(_, v)| v)
-                        .flatten()
-                        .map(|x| *x)
+                        .flat_map(|(_, v)| v).copied()
                         .collect::<HashSet<usize>>()
                 } else {
                     self.stress_indexing[&stress_info].clone()
                 }
             })
-            .flatten()
     }
 
     pub fn load_default(dir: &PathBuf) -> Self {
@@ -548,12 +545,10 @@ impl<'collector> TopNHeap<'collector> {
                 self.collected = true;
                 self.max_dist = self.heap.peek().unwrap().dist;
             }
-        } else {
-            if self.max_dist > res.dist {
-                self.heap.pop(); // pops the word with the greatest distance!
-                self.heap.push(res);
-                self.max_dist = self.heap.peek().unwrap().dist;
-            }
+        } else if self.max_dist > res.dist {
+            self.heap.pop(); // pops the word with the greatest distance!
+            self.heap.push(res);
+            self.max_dist = self.heap.peek().unwrap().dist;
         }
     }
 

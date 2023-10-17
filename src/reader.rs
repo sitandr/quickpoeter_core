@@ -209,10 +209,10 @@ pub fn pickle_read<'a, T>(path: &PathBuf) -> T
 where
     T: Deserialize<'a>,
 {
-    let file = File::open(path).expect(&*format!("Error opening {:?}", path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("Error opening {:?}", path));
     let reader = BufReader::new(file);
     let data: T = serde_pickle::from_reader(reader, DeOptions::new())
-        .expect(&*format!("Error reading {:?}", path));
+        .unwrap_or_else(|_| panic!("Error reading {:?}", path));
     data
 }
 
@@ -222,7 +222,7 @@ where
 {
     let file = File::open(path).map_err(|err| err.to_string())?;
     let reader = BufReader::new(file);
-    Ok(serde_yaml::from_reader(reader).map_err(|err| err.to_string())?)
+    serde_yaml::from_reader(reader).map_err(|err| err.to_string())
 }
 
 #[ignore]

@@ -48,7 +48,7 @@ impl MeanTheme {
             }
 
             average[j] /= n as f32;
-            norm += (average[j] as f32).powf(2.0);
+            norm += average[j].powf(2.0);
 
             if n > 1 {
                 for i in 0..n {
@@ -141,7 +141,7 @@ where
         None => Either::Right(s),
     });
 
-    if failured.len() == 0 {
+    if failured.is_empty() {
         Ok(success)
     } else {
         Err(failured)
