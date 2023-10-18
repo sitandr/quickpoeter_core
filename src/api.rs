@@ -19,6 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 This module provides commands for using tool from extern sources (or console)
 */
 
+use std::ops::Deref;
+
 use crate::finder::{FindingInfo, WordCollector, WordDistanceResult};
 use crate::meaner::MeanTheme;
 use crate::reader::{GeneralSettings, MeanStrThemes};
@@ -72,7 +74,7 @@ pub struct Args {
     pub measure: Option<String>,
 }
 
-pub fn string2word(wc: &WordCollector, to_find: &String) -> Result<Word, String> {
+pub fn string2word(wc: &WordCollector, to_find: &str) -> Result<Word, String> {
     if to_find.chars().all(|c| match c {
         '+' | '!' => true,
         _ => false,
@@ -170,14 +172,15 @@ pub fn find_from_args<'a>(
 }
 
 #[allow(dead_code)]
-pub fn find<'a>(
+pub fn find<'a, S>(
     wc: &'a WordCollector,
     gs: &'_ GeneralSettings,
     to_find: Word,
     theme: Option<&MeanTheme>,
-    rps: &Vec<String>,
+    rps: &[S],
     top_n: u32,
-) -> Result<Vec<WordDistanceResult<'a>>, String> {
+) -> Result<Vec<WordDistanceResult<'a>>, String>
+where S: Deref<Target = str> {
     let info = FindingInfo::new(wc, &to_find, gs, theme);
-    wc.find_best(&info, rps.iter().map(|s| &**s).collect(), top_n)
+    wc.find_best(&info, rps.iter().map(|s| s.deref()).collect(), top_n)
 }

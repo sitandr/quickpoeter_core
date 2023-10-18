@@ -30,11 +30,14 @@ use crate::reader::PopularitySettings;
 use crate::reader::SamePartSpeechSettings;
 use crate::reader::UnsymmetricalSettings;
 use crate::reader::VECTOR_DIM;
+use crate::reader::vec16_to_vec32;
+use crate::reader::vec2arr;
 use crate::translator_ru::symbol_id;
 use crate::translator_struct::Word;
 use ordered_float::NotNan;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
+use serde_pickle::DeOptions;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -527,6 +530,19 @@ impl WordCollector {
     pub fn get_speech_part(&self, not_stressed: &str) -> Option<&str> {
         self.get_forms(not_stressed)
             .map(|&i| &*self.word_form_groups[i].speech_part)
+    }
+}
+
+impl Default for WordCollector {
+    fn default() -> Self {
+        let vectors: Vec<_> = bincode::deserialize(include_bytes!("../res/r_vectors_16.bc")).expect("Corrupt zaliz in build");
+        let vectors = vectors.into_iter().map(vec16_to_vec32).collect();
+        
+        WordCollector::new(
+            serde_pickle::from_slice(include_bytes!("../res/r_index2word.pkl"), DeOptions::new()).expect("Corrupt index2word in build"),
+            serde_pickle::from_slice(include_bytes!("../res/r_min_zaliz.pkl"), DeOptions::new()).expect("Corrupt zaliz in build"),
+            vec2arr(vectors),
+        )
     }
 }
 

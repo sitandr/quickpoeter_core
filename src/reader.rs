@@ -145,9 +145,16 @@ macro_rules! construct_path {
 }
 
 impl GeneralSettings {
+    /// Use instead of load_default if you don't want to increase binary size and load it externally
     pub fn load_default(dir: &PathBuf) -> GeneralSettings {
         yaml_read(construct_path!(dir, "config", "coefficients.yaml"))
             .expect("Error reading default settings")
+    }
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        serde_yaml::from_slice(include_bytes!("../config/coefficients.yaml")).expect("Corrupt YAML file in build")
     }
 }
 
@@ -165,6 +172,13 @@ impl MeanStrThemes {
     }
 }
 
+impl Default for MeanStrThemes {
+    fn default() -> Self {
+        MeanStrThemes{str_themes: serde_yaml::from_slice(include_bytes!("../config/themes.yaml")).expect("Corrupt YAML file in build")}
+    }
+}
+
+/// Use instead of load_default if you don't want to increase binary size and load it externally
 pub fn load_default_word_collector(dir: &PathBuf) -> WordCollector {
     let i2w: Vec<String> = pickle_read(construct_path!(dir, "res", "r_index2word.pkl"));
 
@@ -178,7 +192,7 @@ pub fn load_default_word_collector(dir: &PathBuf) -> WordCollector {
 use std::convert::TryInto;
 use std::fmt::Debug;
 
-fn vec2arr<T: Debug, const N: usize>(arr: Vec<Vec<T>>) -> Vec<[T; N]> {
+pub(crate) fn vec2arr<T: Debug, const N: usize>(arr: Vec<Vec<T>>) -> Vec<[T; N]> {
     let mut new_arr = vec![];
     for elem in arr {
         new_arr.push(elem.try_into().expect("Wrong dim"));
@@ -194,7 +208,7 @@ fn bin_read(path: &PathBuf) -> Vec<[f32; VECTOR_DIM]> {
     vec2arr(data)
 }
 
-fn vec16_to_vec32(v: Vec<f16>) -> Vec<f32> {
+pub(crate) fn vec16_to_vec32(v: Vec<f16>) -> Vec<f32> {
     v.into_iter().map(f16::to_f32).collect()
 }
 
